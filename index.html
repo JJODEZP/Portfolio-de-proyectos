@@ -79,6 +79,18 @@
                     description: 'Automatización del flujo de reporting desde Libro Diario. Transformación de asientos contables en EEFF y Dashboards gerenciales reactivos.',
                     link: 'assets/docs/FP&A_Corporativo_Automatico.pdf',
                     template: 'assets/templates/FPA_Reporting_From_LibroDiario_Template_Jose.xlsx'
+                },
+                {
+                    id: 'control-tower',
+                    title: 'Control Tower: Proyectos Estratégicos',
+                    tag: 'Gestión & Mejora Continua',
+                    status: 'Web App',
+                    icon: 'target',
+                    description: 'Sistema multi-planta para proyectos estratégicos y Kaizen: avance por hitos, beneficios vs línea base, ROI/payback, KPIs operativos, desviaciones de costo vs presupuesto y estándar, árbol de oportunidades y roles por líder.',
+                    link: 'dashboard/index.html',
+                    cta: 'Abrir Dashboard',
+                    template: 'supabase/migrations/001_schema.sql',
+                    templateLabel: 'Descargar Esquema SQL'
                 }
             ];
 
@@ -131,7 +143,7 @@
 
                     {/* Grid de Casos Moderno */}
                     <section className="max-w-6xl mx-auto px-6 pb-32 w-full">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             {caseStudies.map((cs) => (
                                 <div key={cs.id} className="case-card rounded-[32px] p-8 border border-slate-200 flex flex-col h-full relative overflow-hidden group">
                                     {/* Decorativo sutil */}
@@ -152,10 +164,10 @@
 
                                     <div className="space-y-3 mt-auto">
                                         <a href={cs.link} target="_blank" className="flex items-center justify-center gap-2 w-full py-4 bg-slate-900 text-white rounded-2xl font-bold text-xs hover:bg-indigo-600 transition-all shadow-lg shadow-slate-200">
-                                            Analizar Caso PDF <i data-lucide="chevron-right" className="w-4 h-4"></i>
+                                            {cs.cta || 'Analizar Caso PDF'} <i data-lucide="chevron-right" className="w-4 h-4"></i>
                                         </a>
                                         <a href={cs.template} download className="flex items-center justify-center gap-2 w-full py-3 text-slate-400 hover:text-indigo-600 font-bold text-[10px] uppercase tracking-[0.15em] transition-colors">
-                                            <i data-lucide="download" className="w-3 h-3"></i> Descargar Template
+                                            <i data-lucide="download" className="w-3 h-3"></i> {cs.templateLabel || 'Descargar Template'}
                                         </a>
                                     </div>
                                 </div>
