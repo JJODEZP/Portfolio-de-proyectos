@@ -28,7 +28,7 @@ export function Admin() {
 
   const enBlanco = (): Tables => {
     const base = buildSeed();
-    return { ...base, oportunidades: [], proyectos: [], hitos: [], checkins: [], beneficios_mensuales: [], kpis: [], replicaciones: [], causas_raiz: [], acciones: [],
+    return { ...base, oportunidades: [], proyectos: [], hitos: [], checkins: [], beneficios_mensuales: [], kpis: [], replicaciones: [], causas_raiz: [], acciones: [], comentarios: [],
       costos_mensuales: base.costos_mensuales.map((c) => ({ ...c, presupuesto: 0, costo_real: null, estandar: 0 })),
       perfiles: base.perfiles.filter((p) => p.rol === 'admin') };
   };

@@ -19,6 +19,31 @@ Sistema web para gestionar el portafolio de proyectos estratégicos, Kaizen e in
 | Planes de acción | Acciones de proyectos y de causas raíz, con vencimientos |
 | Datos y administración | Plantas y metas, usuarios y roles, clases de costo, exportación CSV para Power BI, respaldo JSON |
 
+## Cómo leer el ahorro
+
+Toda la app usa los mismos 4 conceptos, cada uno con su color:
+
+| Color | Concepto | Qué significa |
+|---|---|---|
+| Verde | **Logrado** | Ahorro real medido contra la línea base, hasta el último mes cerrado |
+| Naranja | **Esperado a la fecha** | Lo que ya deberíamos haber ahorrado según la curva plan, hasta el último mes cerrado |
+| Azul | **Comprometido (año)** | Ahorro anual que prometen los proyectos aprobados o en evaluación |
+| Gris | **Meta anual** | Ahorro que cada planta debe lograr este año |
+
+Y responde siempre dos preguntas:
+
+- **¿Vamos al día?** Compara logrado con esperado.
+- **¿Alcanza para la meta?** Compara comprometido con meta.
+
+## Colaboración
+
+En la ficha de cada proyecto, la barra **«Actualizar proyecto»** permite:
+
+- **Comentar:** cualquier usuario, incluida Gerencia.
+- **Agregar hito**, **registrar avance**, **registrar el ahorro del mes**, **crear una acción** y **agregar un KPI:** el líder, el jefe de planta y Control de Gestión.
+
+El resumen ejecutivo muestra la **actividad reciente** del equipo: comentarios, avances e hitos completados. En el modo demo, todo lo que se agrega queda guardado en el navegador de cada persona. Con Supabase queda compartido para todo el equipo; la migración `002_comentarios.sql` agrega la tabla de comentarios con sus permisos.
+
 ## Reglas de medición
 
 - **Avance real** = % ponderado (por peso) de hitos completados. **Avance plan** = % ponderado de hitos cuya fecha plan ya pasó.
@@ -61,7 +86,7 @@ Después de cambiar el código, ejecuta `npm run build` y commitea `dashboard/` 
 ## Pasar a producción con Supabase
 
 1. Crea un proyecto en [supabase.com](https://supabase.com).
-2. En **SQL Editor**, ejecuta `supabase/migrations/001_schema.sql`. Luego ejecuta `supabase/seed_base.sql`, con tus plantas y tu email de administrador.
+2. En **SQL Editor**, ejecuta `supabase/migrations/001_schema.sql` y luego `002_comentarios.sql`. Después ejecuta `supabase/seed_base.sql`, con tus plantas y tu email de administrador.
 3. En **Authentication → URL Configuration**, agrega la URL donde publicarás la app (por ejemplo `https://<usuario>.github.io/<repo>/dashboard/`).
 4. Crea `app/.env` a partir de `.env.example` con `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`. Ejecuta `npm run build` y publica `dashboard/`.
    - Mantén el demo público aparte: compílalo sin `.env` en otra carpeta o en otro sitio.

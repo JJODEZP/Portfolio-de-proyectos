@@ -69,7 +69,8 @@ export function LineChart({ labels, series, height = 240, fmt = fMM, unidad = 'M
             <text key={l + i} x={x(i)} y={height - 6} textAnchor="middle">{l}</text>
           ))}
           {hover != null && <line x1={x(hover)} x2={x(hover)} y1={m.t} y2={m.t + ih} stroke="var(--line)" />}
-          {series.map((s) => {
+          {/* La primera serie se dibuja al final para quedar encima */}
+          {[...series].reverse().map((s) => {
             const pts = s.valores.map((v, i) => (v == null ? null : [x(i), y(v)] as const));
             const segs: string[] = [];
             let cur = '';
@@ -83,6 +84,7 @@ export function LineChart({ labels, series, height = 240, fmt = fMM, unidad = 'M
                 {hover != null && s.valores[hover] != null && (
                   <circle cx={x(hover)} cy={y(s.valores[hover]!)} r={4.5} fill={s.color} stroke="var(--surface)" strokeWidth={2} />
                 )}
+                {last >= 0 && <circle cx={x(last)} cy={y(s.valores[last]!)} r={3.5} fill={s.color} stroke="var(--surface)" strokeWidth={1.5} />}
                 {last >= 0 && (
                   <text x={x(last) + 8} y={y(s.valores[last]!) + 4} style={{ fill: 'var(--ink)', fontWeight: 700 }}>{fmt(s.valores[last]!)}</text>
                 )}

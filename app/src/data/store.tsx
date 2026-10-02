@@ -30,7 +30,7 @@ interface Store {
 
 const vacio = (): Tables => ({
   plantas: [], perfiles: [], clases_costo: [], oportunidades: [], proyectos: [], hitos: [], checkins: [],
-  beneficios_mensuales: [], kpis: [], replicaciones: [], costos_mensuales: [], causas_raiz: [], acciones: [],
+  beneficios_mensuales: [], kpis: [], replicaciones: [], costos_mensuales: [], causas_raiz: [], acciones: [], comentarios: [],
 });
 
 const Ctx = createContext<Store | null>(null);
@@ -98,7 +98,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     // Cascada explícita (en Supabase además existe ON DELETE CASCADE / SET NULL)
     const hijos: [TableName, string[]][] = [];
     if (table === 'proyectos') {
-      for (const t of ['hitos', 'checkins', 'beneficios_mensuales', 'kpis', 'replicaciones', 'acciones'] as const) {
+      for (const t of ['hitos', 'checkins', 'beneficios_mensuales', 'kpis', 'replicaciones', 'acciones', 'comentarios'] as const) {
         const quitar = (db[t] as { id: string; proyecto_id: string | null }[])
           .filter((x) => x.proyecto_id && set.has(x.proyecto_id)).map((x) => x.id);
         if (quitar.length) hijos.push([t, quitar]);

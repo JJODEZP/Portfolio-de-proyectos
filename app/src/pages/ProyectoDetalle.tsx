@@ -1,18 +1,21 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { AHORRO, AvanceAhorro, Concepto, PanelAhorro } from '../components/ahorro';
 import { LineChart } from '../components/charts';
 import { Icon } from '../components/Icon';
-import { Card, Empty, EtapaBadge, Field, Meter, Modal, NumInput, SaludBadge, Tile, saludColor, saludLabel } from '../components/ui';
+import { Card, Empty, EtapaBadge, Field, Meter, Modal, NumInput, SaludBadge, Tile, saludColor } from '../components/ui';
 import { useStore } from '../data/store';
 import { useMetricas, type MetricaProyecto } from '../data/useMetricas';
 import { diasEntre, hoyISO, periodoIdx, progresoKpi } from '../lib/calc';
 import { fFecha, fMes, fMM, fNum, fPct0, fSigno, uid } from '../lib/format';
-import { puedeAprobar, puedeEditarAccion, puedeEditarProyecto, puedeEliminarProyecto } from '../lib/permissions';
-import { MESES, type BeneficioMensual, type Checkin, type Hito, type Kpi, type Proyecto, type Replicacion, type Salud } from '../lib/types';
+import { puedeAprobar, puedeComentar, puedeEditarAccion, puedeEditarProyecto, puedeEliminarProyecto } from '../lib/permissions';
+import { MESES, type BeneficioMensual, type Hito, type Kpi, type Proyecto, type Replicacion } from '../lib/types';
 import { AccionForm, nuevaAccion } from './Acciones';
+import { AhorroMesForm, CheckinForm, Comentarios, HitoForm, KpiForm } from './Colaboracion';
 import { ProyectoForm } from './ProyectoForm';
 
-type Tab = 'resumen' | 'hitos' | 'beneficios' | 'kpis' | 'checkins' | 'acciones' | 'replicas';
+type Tab = 'resumen' | 'comentarios' | 'hitos' | 'beneficios' | 'kpis' | 'checkins' | 'acciones' | 'replicas';
+type Rapido = 'hito' | 'avance' | 'ahorro' | 'accion' | 'kpi' | null;
 
 export function ProyectoDetalle() {
   const { id } = useParams();
@@ -21,6 +24,10 @@ export function ProyectoDetalle() {
   const nav = useNavigate();
   const [tab, setTab] = useState<Tab>('resumen');
   const [editando, setEditando] = useState(false);
+  const [rapido, setRapido] = useState<Rapido>(null);
+  const comentarioRef = useRef<HTMLTextAreaElement>(null);
+  const [enfocar, setEnfocar] = useState(0);
+  useEffect(() => { if (enfocar) comentarioRef.current?.focus(); }, [enfocar]);
   const m = id ? map.get(id) : undefined;
   if (!m) return <Card><Empty>Proyecto no encontrado. <Link to="/proyectos">Volver a proyectos</Link></Empty></Card>;
   const p = m.p;
@@ -37,9 +44,10 @@ export function ProyectoDetalle() {
   };
 
   const tabs: [Tab, string, number?][] = [
-    ['resumen', 'Resumen'], ['hitos', 'Hitos', db.hitos.filter((h) => h.proyecto_id === p.id).length],
+    ['resumen', 'Resumen'], ['comentarios', 'Comentarios', db.comentarios.filter((c) => c.proyecto_id === p.id).length],
+    ['hitos', 'Hitos', db.hitos.filter((h) => h.proyecto_id === p.id).length],
     ['beneficios', 'Beneficios y ROI'], ['kpis', 'KPIs operativos', db.kpis.filter((k) => k.proyecto_id === p.id).length],
-    ['checkins', 'Check-ins', db.checkins.filter((c) => c.proyecto_id === p.id).length],
+    ['checkins', 'Avances (check-ins)', db.checkins.filter((c) => c.proyecto_id === p.id).length],
     ['acciones', 'Acciones', db.acciones.filter((a) => a.proyecto_id === p.id).length],
     ['replicas', 'Replicabilidad', db.replicaciones.filter((r) => r.proyecto_id === p.id).length],
   ];
@@ -66,13 +74,27 @@ export function ProyectoDetalle() {
         </div>
       </div>
 
-      {!editable && <div className="banner no-print" style={{ marginBottom: 14 }}><Icon name="info" /> Vista de solo lectura: solo el líder del proyecto, el jefe de la planta y Control de Gestión pueden editarlo.</div>}
+      {(editable || puedeComentar(me)) && (
+        <div className="quick no-print" role="toolbar" aria-label="Acciones rápidas">
+          <span className="lbl">Actualizar proyecto:</span>
+          {puedeComentar(me) && <button className="btn sm" onClick={() => { setTab('comentarios'); setEnfocar((n) => n + 1); }}><Icon name="message" size={14} /> Comentar</button>}
+          {editable && <>
+            <button className="btn sm" onClick={() => setRapido('hito')}><Icon name="flag" size={14} /> Agregar hito</button>
+            <button className="btn sm" onClick={() => setRapido('avance')}><Icon name="gauge" size={14} /> Registrar avance</button>
+            <button className="btn sm" onClick={() => setRapido('ahorro')}><Icon name="coins" size={14} /> Registrar ahorro del mes</button>
+            <button className="btn sm" onClick={() => setRapido('accion')}><Icon name="checkSquare" size={14} /> Nueva acción</button>
+            <button className="btn sm" onClick={() => setRapido('kpi')}><Icon name="target" size={14} /> Agregar KPI</button>
+          </>}
+        </div>
+      )}
+      {!editable && <div className="banner no-print" style={{ marginBottom: 14 }}><Icon name="info" /> Puedes comentar, pero solo el líder del proyecto, el jefe de la planta y Control de Gestión pueden editar sus datos.</div>}
 
       <div className="tabs no-print" role="tablist">
         {tabs.map(([k, l, n]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}{n != null ? ` (${n})` : ''}</button>)}
       </div>
 
-      {tab === 'resumen' && <TabResumen m={m} />}
+      {tab === 'resumen' && <TabResumen m={m} onVerComentarios={() => setTab('comentarios')} />}
+      {tab === 'comentarios' && <Card title="Comentarios del equipo" sub="Preguntas, acuerdos y bloqueos. Todos los usuarios pueden comentar."><Comentarios ref={comentarioRef} proyecto={p} /></Card>}
       {tab === 'hitos' && <TabHitos p={p} editable={editable} />}
       {tab === 'beneficios' && <TabBeneficios m={m} editable={editable} />}
       {tab === 'kpis' && <TabKpis p={p} editable={editable} />}
@@ -81,16 +103,25 @@ export function ProyectoDetalle() {
       {tab === 'replicas' && <TabReplicas p={p} editable={editable} />}
 
       {editando && <ProyectoForm inicial={p} onClose={() => setEditando(false)} />}
+      {rapido === 'hito' && <HitoForm proyecto={p} onClose={() => setRapido(null)} />}
+      {rapido === 'ahorro' && <AhorroMesForm proyecto={p} onClose={() => setRapido(null)} />}
+      {rapido === 'kpi' && <KpiForm proyecto={p} onClose={() => setRapido(null)} />}
+      {rapido === 'accion' && <AccionForm inicial={{ ...nuevaAccion(me), proyecto_id: p.id, responsable_id: p.lider_id }} onClose={() => setRapido(null)} />}
+      {rapido === 'avance' && (
+        <Modal title="Registrar avance" onClose={() => setRapido(null)}>
+          <CheckinForm proyecto={p} avance={m.avance} saludInicial={m.salud} onDone={() => setRapido(null)} />
+        </Modal>
+      )}
     </>
   );
 }
 
-function TabResumen({ m }: { m: MetricaProyecto }) {
-  const { db } = useStore();
+function TabResumen({ m, onVerComentarios }: { m: MetricaProyecto; onVerComentarios: () => void }) {
+  const { db, perfil } = useStore();
   const p = m.p;
   const op = db.oportunidades.find((o) => o.id === p.oportunidad_id);
   const clase = db.clases_costo.find((c) => c.id === p.clase_id);
-  const cumpl = m.acum.plan ? (m.acum.real / m.acum.plan) * 100 : null;
+  const ultimos = db.comentarios.filter((c) => c.proyecto_id === p.id).sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 2);
   const kpis = db.kpis.filter((k) => k.proyecto_id === p.id);
   return (
     <div className="stack">
@@ -98,7 +129,11 @@ function TabResumen({ m }: { m: MetricaProyecto }) {
         <Tile label="Avance real" value={`${m.avance}%`} sub={<>Plan a la fecha: {m.esperado}% · {m.atrasados} hitos atrasados</>}>
           <div style={{ marginTop: 10 }}><Meter value={m.avance} mark={m.esperado} label="Avance" /></div>
         </Tile>
-        <Tile label="Ahorro real acumulado" value={fMM(m.acum.real)} unit="MM" sub={<>Plan a la fecha {fMM(m.acum.plan)} MM · {cumpl == null ? 's/plan' : `${fPct0(cumpl)} cumplimiento`}</>} />
+        <div className="card tile">
+          <div className="label">Ahorro del proyecto</div>
+          <div style={{ marginTop: 8 }}><AvanceAhorro logrado={m.acum.real} esperado={m.acum.plan} compacto /></div>
+          <div className="sub"><Concepto c="comprometido">Compromete {fMM(p.ahorro_comprometido_anual)} MM/año</Concepto></div>
+        </div>
         <Tile label="ROI esperado" value={m.fin.roiEsperado == null ? '—' : fPct0(m.fin.roiEsperado)} sub={<>Inversión {fMM(m.fin.inversion)} MM · payback {m.fin.paybackPlan == null ? '—' : `${fNum(m.fin.paybackPlan)} meses`}</>} />
         <div className="card tile">
           <div className="label">Salud del proyecto</div>
@@ -117,12 +152,12 @@ function TabResumen({ m }: { m: MetricaProyecto }) {
             <dt>Oportunidad</dt><dd>{op?.nombre ?? '—'}</dd>
             <dt>Línea base</dt><dd>{p.linea_base || '—'}</dd>
             <dt>Tipo de beneficio</dt><dd>{p.tipo_beneficio}</dd>
-            <dt>Comprometido</dt><dd>{fMM(p.ahorro_comprometido_anual)} MM/año</dd>
+            <dt>{AHORRO.comprometido.label}</dt><dd>{fMM(p.ahorro_comprometido_anual)} MM/año</dd>
             <dt>Inversión</dt><dd>CAPEX {fMM(p.inversion_capex)} · OPEX {fMM(p.inversion_opex)} MM</dd>
             <dt>Fechas</dt><dd>{fFecha(p.fecha_inicio)} → {fFecha(p.fecha_fin_plan)}{p.fecha_fin_real ? ` (real ${fFecha(p.fecha_fin_real)})` : ''}</dd>
           </dl>
         </Card>
-        <Card title="Último check-in" sub={m.checkin ? `${fFecha(m.checkin.fecha)} · hace ${diasEntre(m.checkin.fecha, hoyISO())} días` : undefined}>
+        <Card title="Último avance reportado" sub={m.checkin ? `${fFecha(m.checkin.fecha)} · hace ${diasEntre(m.checkin.fecha, hoyISO())} días` : undefined}>
           {m.checkin ? (
             <div className="stack" style={{ gap: 10 }}>
               <div className="row"><SaludBadge s={m.checkin.salud} /><span className="small muted">Avance reportado {m.checkin.avance}%</span></div>
@@ -130,7 +165,16 @@ function TabResumen({ m }: { m: MetricaProyecto }) {
               {m.checkin.riesgos && <div className="small"><b>Riesgos: </b>{m.checkin.riesgos}</div>}
               {m.checkin.proximos_pasos && <div className="small"><b>Próximos pasos: </b>{m.checkin.proximos_pasos}</div>}
             </div>
-          ) : <Empty>Sin check-ins todavía.</Empty>}
+          ) : <Empty>Sin reportes de avance todavía.</Empty>}
+          <div className="mt">
+            <div className="row between" style={{ marginBottom: 4 }}><h3>Últimos comentarios</h3><button className="btn sm ghost" onClick={onVerComentarios}>Ver todos / comentar</button></div>
+            {ultimos.length ? ultimos.map((c) => (
+              <div key={c.id} className="small" style={{ padding: '6px 0', borderBottom: '1px solid var(--grid)' }}>
+                <b>{perfil(c.autor_id)?.nombre}</b> <span className="xs muted">{fFecha(c.fecha)}</span>
+                <div className="muted" style={{ overflowWrap: 'anywhere' }}>{c.texto}</div>
+              </div>
+            )) : <p className="small muted" style={{ margin: 0 }}>Nadie ha comentado aún.</p>}
+          </div>
           {kpis.length > 0 && (
             <div className="mt">
               <h3 style={{ marginBottom: 8 }}>KPIs operativos</h3>
@@ -160,7 +204,8 @@ function TabHitos({ p, editable }: { p: Proyecto; editable: boolean }) {
   const t0 = Math.min(...fechas), t1 = Math.max(...fechas);
   const pos = (d: string) => `${((Date.parse(d) - t0) / (t1 - t0 || 1)) * 100}%`;
   const upd = (h: Hito, c: Partial<Hito>) => save('hitos', { ...h, ...c });
-  const agregar = () => save('hitos', { id: uid('hi-'), proyecto_id: p.id, nombre: 'Nuevo hito', fecha_plan: p.fecha_fin_plan, fecha_real: null, peso: 10 });
+  const [nuevo, setNuevo] = useState(false);
+  const agregar = () => setNuevo(true);
   const pesoTotal = hitos.reduce((s, h) => s + h.peso, 0);
 
   return (
@@ -219,6 +264,7 @@ function TabHitos({ p, editable }: { p: Proyecto; editable: boolean }) {
           </table>
         </div>
       </Card>
+      {nuevo && <HitoForm proyecto={p} onClose={() => setNuevo(false)} />}
     </div>
   );
 }
@@ -229,6 +275,7 @@ function TabBeneficios({ m, editable }: { m: MetricaProyecto; editable: boolean 
   const { cierre } = useMetricas();
   const p = m.p;
   const [generar, setGenerar] = useState(false);
+  const [registrar, setRegistrar] = useState(false);
   const bens = db.beneficios_mensuales.filter((b) => b.proyecto_id === p.id).sort((a, b) => periodoIdx(a) - periodoIdx(b));
   const fin = m.fin;
   let accP = 0, accR = 0;
@@ -246,30 +293,33 @@ function TabBeneficios({ m, editable }: { m: MetricaProyecto; editable: boolean 
 
   return (
     <div className="stack">
-      <div className="grid g4">
+      <Card title="Ahorro del proyecto" sub={`Línea base: ${p.linea_base || 'sin definir'} · ${p.tipo_beneficio}`}
+        actions={editable && <button className="btn sm primary" onClick={() => setRegistrar(true)}><Icon name="coins" size={14} /> Registrar ahorro del mes</button>}>
+        <PanelAhorro logrado={m.acum.real} esperado={m.acum.plan} comprometido={p.ahorro_comprometido_anual} />
+      </Card>
+      <div className="grid g3">
         <Tile label="Inversión total" value={fMM(fin.inversion)} unit="MM" sub={<>CAPEX {fMM(p.inversion_capex)} · OPEX {fMM(p.inversion_opex)}</>} />
         <Tile label="ROI esperado (anual)" value={fin.roiEsperado == null ? '—' : fPct0(fin.roiEsperado)} sub={<>Payback plan {fin.paybackPlan == null ? '—' : `${fNum(fin.paybackPlan)} meses`}</>} />
-        <Tile label="Ahorro real acumulado" value={fMM(fin.realTotal)} unit="MM" sub={<>vs plan a la fecha {fMM(m.acum.plan)} MM ({m.acum.plan ? fPct0((m.acum.real / m.acum.plan) * 100) : '—'})</>} />
         <Tile label="ROI realizado" value={fin.roiReal == null ? '—' : fPct0(fin.roiReal)}
           sub={fin.inversion ? (fin.paybackReal ? <>Inversión recuperada en {fin.paybackReal} meses</> : <>Falta recuperar {fMM(Math.max(0, fin.inversion - fin.realTotal))} MM</>) : 'Sin inversión registrada'} />
       </div>
-      <Card title="Ahorro acumulado: real vs plan" sub={`Línea base: ${p.linea_base || 'sin definir'} · ${p.tipo_beneficio}`}>
+      <Card title="Curva de ahorro acumulado" sub="Millones de CLP · si la línea verde queda bajo la naranja, el proyecto va atrasado">
         {bens.length ? (
           <LineChart labels={bens.map((b) => fMes(b.anio, b.mes))} series={[
-            { nombre: 'Real acumulado', valores: filas.map((f) => (f.accR == null ? null : Math.round(f.accR * 10) / 10)), color: 'var(--series)' },
-            { nombre: 'Plan acumulado', valores: filas.map((f) => Math.round(f.accP * 10) / 10), color: 'var(--series-o)' },
-            ...(fin.inversion ? [{ nombre: 'Inversión', valores: filas.map(() => fin.inversion), color: 'var(--series-2)', dashed: true }] : []),
+            { nombre: AHORRO.logrado.label, valores: filas.map((f) => (f.accR == null ? null : Math.round(f.accR * 10) / 10)), color: AHORRO.logrado.color },
+            { nombre: 'Esperado (plan)', valores: filas.map((f) => Math.round(f.accP * 10) / 10), color: AHORRO.esperado.color },
+            ...(fin.inversion ? [{ nombre: 'Inversión a recuperar', valores: filas.map(() => fin.inversion), color: 'var(--c-meta)', dashed: true }] : []),
           ]} />
         ) : <Empty>Sin curva de beneficios. {editable && 'Genera la curva plan a partir del ahorro comprometido.'}</Empty>}
       </Card>
       <Card flush title="Registro mensual de ahorro" sub={`Ahorro = diferencia vs línea base, en MM CLP. Meses cerrados hasta ${MESES[cierre.mes - 1]} ${cierre.anio}.`}
         actions={editable && <>
           <button className="btn sm" onClick={() => setGenerar(true)}><Icon name="trend" size={14} /> Generar curva plan</button>
-          <button className="btn sm primary" onClick={agregarMes}><Icon name="plus" size={14} /> Mes</button>
+          <button className="btn sm" onClick={agregarMes}><Icon name="plus" size={14} /> Agregar mes</button>
         </>}>
         <div className="table-wrap">
           <table className="tbl compact">
-            <thead><tr><th>Mes</th><th className="num">Plan</th><th className="num">Real</th><th className="num">Δ real − plan</th><th className="num">Plan acum.</th><th className="num">Real acum.</th><th /></tr></thead>
+            <thead><tr><th>Mes</th><th className="num"><Concepto c="esperado">Esperado</Concepto></th><th className="num"><Concepto c="logrado">Logrado</Concepto></th><th className="num">Diferencia</th><th className="num">Esperado acum.</th><th className="num">Logrado acum.</th><th /></tr></thead>
             <tbody>
               {filas.map(({ b, accP: ap, accR: ar }) => {
                 const d = b.ahorro_real == null ? null : b.ahorro_real - b.ahorro_plan;
@@ -278,7 +328,7 @@ function TabBeneficios({ m, editable }: { m: MetricaProyecto; editable: boolean 
                     <td className="nowrap">{fMes(b.anio, b.mes)}{periodoIdx(b) > periodoIdx(cierre) && <span className="xs muted"> · abierto</span>}</td>
                     <td className="num" style={{ width: 110 }}>{editable ? <NumInput className="input cell" value={b.ahorro_plan} onChange={(v) => upd(b, { ahorro_plan: v ?? 0 })} aria-label="Plan" /> : fNum(b.ahorro_plan)}</td>
                     <td className="num" style={{ width: 110 }}>{editable ? <NumInput className="input cell" allowNull value={b.ahorro_real} onChange={(v) => upd(b, { ahorro_real: v })} aria-label="Real" /> : b.ahorro_real == null ? '—' : fNum(b.ahorro_real)}</td>
-                    <td className="num" style={{ color: d == null ? undefined : d < 0 ? 'var(--crit)' : 'var(--good-text)' }}>{d == null ? '—' : fSigno(d)}</td>
+                    <td className={`num strong ${d == null ? '' : d < 0 ? 'txt-crit' : 'txt-good'}`}>{d == null ? '—' : `${fSigno(d)} ${d < 0 ? '▼' : '▲'}`}</td>
                     <td className="num muted">{fMM(ap)}</td>
                     <td className="num">{ar == null ? '—' : fMM(ar)}</td>
                     <td className="right">{editable && <button className="btn sm ghost icon" aria-label="Eliminar mes" onClick={() => del('beneficios_mensuales', b.id)}><Icon name="trash" size={13} /></button>}</td>
@@ -290,6 +340,7 @@ function TabBeneficios({ m, editable }: { m: MetricaProyecto; editable: boolean 
         </div>
       </Card>
       {generar && <GenerarCurva p={p} onClose={() => setGenerar(false)} existentes={bens} />}
+      {registrar && <AhorroMesForm proyecto={p} onClose={() => setRegistrar(false)} />}
     </div>
   );
 }
@@ -365,39 +416,17 @@ function TabKpis({ p, editable }: { p: Proyecto; editable: boolean }) {
 
 // ---------------------------------------------------------------- check-ins
 function TabCheckins({ m, editable }: { m: MetricaProyecto; editable: boolean }) {
-  const { db, me, perfil, save, toast } = useStore();
+  const { db, perfil } = useStore();
   const p = m.p;
   const lista = db.checkins.filter((c) => c.proyecto_id === p.id).sort((a, b) => b.fecha.localeCompare(a.fecha));
-  const [f, setF] = useState({ salud: m.salud as Salud, comentario: '', riesgos: '', proximos_pasos: '' });
-  const registrar = () => {
-    if (!f.comentario.trim()) return toast('Escribe un comentario de avance.');
-    const c: Checkin = { id: uid('ck-'), proyecto_id: p.id, fecha: hoyISO(), autor_id: me!.id, avance: m.avance, ...f };
-    save('checkins', c);
-    setF({ salud: f.salud, comentario: '', riesgos: '', proximos_pasos: '' });
-    toast('Check-in registrado');
-  };
   return (
     <div className="grid g3">
       {editable && (
-        <Card title="Nuevo check-in" sub={`Avance calculado: ${m.avance}% (plan ${m.esperado}%)`}>
-          <div className="stack" style={{ gap: 12 }}>
-            <Field label="Estado reportado">
-              <div className="seg">
-                {(['verde', 'amarillo', 'rojo'] as Salud[]).map((s) => (
-                  <button key={s} className={f.salud === s ? 'on' : ''} onClick={() => setF({ ...f, salud: s })}>
-                    <span className="dot" style={{ background: saludColor(s), marginRight: 5 }} />{saludLabel(s)}
-                  </button>
-                ))}
-              </div>
-            </Field>
-            <Field label="Avance del período"><textarea className="textarea" value={f.comentario} onChange={(e) => setF({ ...f, comentario: e.target.value })} /></Field>
-            <Field label="Riesgos y bloqueos"><textarea className="textarea" style={{ minHeight: 52 }} value={f.riesgos} onChange={(e) => setF({ ...f, riesgos: e.target.value })} /></Field>
-            <Field label="Próximos pasos"><input className="input" value={f.proximos_pasos} onChange={(e) => setF({ ...f, proximos_pasos: e.target.value })} /></Field>
-            <button className="btn primary" onClick={registrar}>Registrar check-in</button>
-          </div>
+        <Card title="Registrar avance" sub={`Avance calculado: ${m.avance}% (plan ${m.esperado}%)`}>
+          <CheckinForm proyecto={p} avance={m.avance} saludInicial={m.salud} />
         </Card>
       )}
-      <Card className={editable ? 'span2' : ''} title="Historial de check-ins">
+      <Card className={editable ? 'span2' : ''} title="Historial de avances">
         {lista.length ? (
           <div className="timeline">
             {lista.map((c) => (
@@ -412,7 +441,7 @@ function TabCheckins({ m, editable }: { m: MetricaProyecto; editable: boolean })
               </div>
             ))}
           </div>
-        ) : <Empty>Sin check-ins. El líder debería reportar al menos cada 2 semanas.</Empty>}
+        ) : <Empty>Sin reportes. El líder debería reportar avance al menos cada 2 semanas.</Empty>}
       </Card>
     </div>
   );

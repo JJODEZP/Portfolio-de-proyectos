@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom';
 import { Icon } from '../components/Icon';
-import { Card, Meter, SaludBadge, saludLabel } from '../components/ui';
+import { AvanceAhorro, Concepto, CoberturaMeta, Cumplimiento } from '../components/ahorro';
+import { Card, SaludBadge, saludLabel } from '../components/ui';
 import { useStore } from '../data/store';
 import { useMetricas, type MetricaProyecto } from '../data/useMetricas';
 import { diasEntre } from '../lib/calc';
-import { fFecha, fMM, fPct0 } from '../lib/format';
+import { fFecha, fMM } from '../lib/format';
 import { ROLES, type Salud } from '../lib/types';
 
 const activo = (m: MetricaProyecto) => m.p.etapa === 'Evaluación' || m.p.etapa === 'En ejecución';
@@ -45,17 +46,16 @@ export function Plantas() {
             <Card key={pl.id} title={<span className="row"><Icon name="factory" />{pl.nombre}</span>} sub={jefe ? `Jefe de planta: ${jefe.nombre}` : undefined}>
               <div className="stack" style={{ gap: 12 }}>
                 <div>
-                  <div className="row between small"><span className="muted">Ahorro real vs plan a la fecha</span><b className="num">{fMM(r.real)} / {fMM(r.plan)} MM</b></div>
-                  <div style={{ marginTop: 5 }}><Meter value={r.real} max={Math.max(r.plan, r.real)} label="Real vs plan" /></div>
+                  <div className="eyebrow" style={{ marginBottom: 6 }}>¿Vamos al día?</div>
+                  <AvanceAhorro logrado={r.real} esperado={r.plan} compacto />
                 </div>
                 <div>
-                  <div className="row between small"><span className="muted">Comprometido vs meta anual</span><b className="num">{fMM(r.comprometido)} / {fMM(pl.meta_ahorro_anual)} MM</b></div>
-                  <div style={{ marginTop: 5 }}><Meter value={r.comprometido} max={Math.max(pl.meta_ahorro_anual, r.comprometido)} mark={pl.meta_ahorro_anual} label="Comprometido vs meta" /></div>
+                  <div className="eyebrow" style={{ marginBottom: 6 }}>¿Alcanza para la meta?</div>
+                  <CoberturaMeta comprometido={r.comprometido} meta={pl.meta_ahorro_anual} compacto />
                 </div>
                 <dl className="kv" style={{ gridTemplateColumns: '1fr auto' }}>
                   <dt>Proyectos (activos)</dt><dd className="num">{r.total} ({r.activos})</dd>
                   <dt>Avance promedio activos</dt><dd className="num">{r.avanceProm == null ? '—' : `${r.avanceProm}%`}</dd>
-                  <dt>Cumplimiento de beneficio</dt><dd className="num">{r.cumpl == null ? '—' : fPct0(r.cumpl)}</dd>
                   <dt>Inversión</dt><dd className="num">{fMM(r.inversion)} MM</dd>
                   <dt>Hitos atrasados · acciones vencidas</dt><dd className="num">{r.atrasados} · {vencidas}</dd>
                 </dl>
@@ -72,7 +72,7 @@ export function Plantas() {
         <div className="table-wrap">
           <table className="tbl">
             <thead>
-              <tr><th>Líder</th><th>Planta</th><th className="num">Proyectos</th><th className="num">Activos</th><th className="num">Avance prom.</th><th className="num">Beneficio real / plan</th><th className="num">Hitos atrasados</th><th>Último check-in</th><th>Salud</th></tr>
+              <tr><th>Líder</th><th>Planta</th><th className="num">Proyectos</th><th className="num">Activos</th><th className="num">Avance prom.</th><th className="num"><Concepto c="logrado" /> / <Concepto c="esperado">esperado</Concepto></th><th>¿Al día?</th><th className="num">Hitos atrasados</th><th>Último check-in</th><th>Salud</th></tr>
             </thead>
             <tbody>
               {lideres.map((l) => {
@@ -85,11 +85,12 @@ export function Plantas() {
                 return (
                   <tr key={l.id}>
                     <td><Link to={`/proyectos?lider=${l.id}`} className="strong">{l.nombre}</Link><div className="xs muted">{ROLES[l.rol]}</div></td>
-                    <td className="small">{plantaDe(l.planta_id)?.nombre ?? '—'}</td>
+                    <td className="small nowrap">{plantaDe(l.planta_id)?.nombre ?? '—'}</td>
                     <td className="num">{r.total}</td>
                     <td className="num">{r.activos}</td>
                     <td className="num">{r.avanceProm == null ? '—' : `${r.avanceProm}%`}</td>
-                    <td className="num">{fMM(r.real)} / {fMM(r.plan)}{r.cumpl != null && <span className="muted"> ({fPct0(r.cumpl)})</span>}</td>
+                    <td className="num">{fMM(r.real)} / {fMM(r.plan)}</td>
+                    <td><Cumplimiento logrado={r.real} esperado={r.plan} /></td>
                     <td className="num">{r.atrasados}</td>
                     <td className="small nowrap">
                       {peorDias == null ? '—' : peorDias <= 14

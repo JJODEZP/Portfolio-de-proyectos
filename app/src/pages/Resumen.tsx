@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom';
+import { AHORRO, Concepto, Cumplimiento, PanelAhorro } from '../components/ahorro';
 import { HBars, LineChart } from '../components/charts';
 import { Icon } from '../components/Icon';
-import { Card, Meter, SaludBadge, Tile, saludLabel } from '../components/ui';
+import { Card, SaludBadge, Tile, saludLabel } from '../components/ui';
+import { ActividadReciente } from './Colaboracion';
 import { useStore } from '../data/store';
 import { useMetricas, useProyectosVisibles } from '../data/useMetricas';
 import { diasEntre, periodoIdx } from '../lib/calc';
@@ -17,7 +19,6 @@ export function Resumen() {
 
   const meta = db.plantas.filter((p) => plantasVisibles.includes(p.id)).reduce((s, p) => s + p.meta_ahorro_anual, 0);
   const comprometido = comprometidos.reduce((s, m) => s + m.p.ahorro_comprometido_anual, 0);
-  const pipeline = ms.reduce((s, m) => s + m.p.ahorro_comprometido_anual, 0);
   const planYtd = ms.reduce((s, m) => s + m.acum.plan, 0);
   const realYtd = ms.reduce((s, m) => s + m.acum.real, 0);
   const inversion = ms.reduce((s, m) => s + m.fin.inversion, 0);
@@ -60,35 +61,32 @@ export function Resumen() {
         <Link className="btn primary" to="/proyectos?nuevo=1"><Icon name="plus" /> Nuevo proyecto</Link>
       </div>
 
-      <div className="grid g5">
-        <Tile label="Ahorro real acumulado" value={fMM(realYtd)} unit="MM"
-          sub={<>{planYtd ? fPct0((realYtd / planYtd) * 100) : '—'} del plan a la fecha ({fMM(planYtd)} MM)</>}>
-          <div className="mt" style={{ marginTop: 10 }}><Meter value={realYtd} max={Math.max(planYtd, realYtd)} label="Real vs plan" /></div>
-        </Tile>
-        <Tile label="Ahorro comprometido anual" value={fMM(comprometido)} unit="MM"
-          sub={<>Meta {fMM(meta)} MM · cobertura {meta ? fPct0((comprometido / meta) * 100) : '—'}</>}>
-          <div style={{ marginTop: 10 }}><Meter value={comprometido} max={Math.max(meta, comprometido, pipeline)} soft={pipeline} mark={meta} label="Comprometido vs meta" /></div>
-        </Tile>
-        <Tile label="Proyectos activos" value={activos.length} sub={<>{proyectos.length} en el portafolio · {ms.filter((m) => m.p.etapa === 'Idea').length} ideas</>}>
-          <div className="row" style={{ marginTop: 8, gap: 6 }}>
-            {(['verde', 'amarillo', 'rojo'] as Salud[]).map((s) => <SaludBadge key={s} s={s} label={`${cuenta(s)} ${saludLabel(s).toLowerCase()}`} />)}
-          </div>
-        </Tile>
-        <Tile label="Inversión del portafolio" value={fMM(inversion)} unit="MM"
-          sub={<>ROI esperado {inversion ? fPct0((comprometido / inversion) * 100) : '—'} anual · payback {inversion && comprometido ? `${fNum(inversion / (comprometido / 12))} meses` : '—'}</>} />
-        <Tile label="Alertas" value={hitosAtrasados + accVencidas.length}
-          sub={<>{hitosAtrasados} hitos atrasados · <Link to="/acciones?vencidas=1">{accVencidas.length} acciones vencidas</Link></>} />
+      <div className="grid g3">
+        <Card className="span2" title="Ahorro del portafolio" sub={`Millones de CLP · lo logrado se mide hasta el cierre de ${MESES[cierre.mes - 1]} ${cierre.anio}. Pasa el mouse sobre cada concepto para ver su definición.`}>
+          <PanelAhorro logrado={realYtd} esperado={planYtd} comprometido={comprometido} meta={meta} />
+        </Card>
+        <div className="stack">
+          <Tile label="Proyectos activos" value={activos.length} sub={<>{proyectos.length} en el portafolio · {ms.filter((m) => m.p.etapa === 'Idea').length} ideas</>}>
+            <div className="row" style={{ marginTop: 8, gap: 6 }}>
+              {(['verde', 'amarillo', 'rojo'] as Salud[]).map((s) => <SaludBadge key={s} s={s} label={`${cuenta(s)} ${saludLabel(s).toLowerCase()}`} />)}
+            </div>
+          </Tile>
+          <Tile label="Alertas" value={hitosAtrasados + accVencidas.length}
+            sub={<>{hitosAtrasados} hitos atrasados · <Link to="/acciones?vencidas=1">{accVencidas.length} acciones vencidas</Link></>} />
+          <Tile label="Inversión del portafolio" value={fMM(inversion)} unit="MM"
+            sub={<>ROI esperado {inversion ? fPct0((comprometido / inversion) * 100) : '—'} anual · se recupera en {inversion && comprometido ? `${fNum(inversion / (comprometido / 12))} meses` : '—'}</>} />
+        </div>
       </div>
 
       <div className="grid g3 mt">
-        <Card className="span2" title={`Curva de ahorro acumulado ${anio}`} sub="Millones de CLP · real disponible hasta el último mes cerrado">
+        <Card className="span2" title={`Curva de ahorro acumulado ${anio}`} sub="Millones de CLP · si la línea verde (logrado) queda bajo la naranja (esperado), vamos atrasados">
           <LineChart labels={MESES} series={[
-            { nombre: 'Real', valores: real, color: 'var(--series)' },
-            { nombre: 'Plan comprometido', valores: plan, color: 'var(--series-o)' },
-            { nombre: 'Meta', valores: metaAcc, color: 'var(--series-2)', dashed: true },
+            { nombre: AHORRO.logrado.label, valores: real, color: AHORRO.logrado.color },
+            { nombre: 'Esperado (plan de los proyectos)', valores: plan, color: AHORRO.esperado.color },
+            { nombre: 'Meta (lineal)', valores: metaAcc, color: AHORRO.meta.color, dashed: true },
           ]} />
         </Card>
-        <Card title="Embudo por etapa" sub="Ahorro anual comprometido (MM) y nº de proyectos">
+        <Card title="Embudo por etapa" sub="Ahorro anual que promete cada etapa (MM) · nº de proyectos">
           <HBars labelWidth={110} items={ETAPAS.map((e, i) => {
             const del = ms.filter((m) => m.p.etapa === e);
             const v = del.reduce((s, m) => s + m.p.ahorro_comprometido_anual, 0);
@@ -124,57 +122,76 @@ export function Resumen() {
             </div>
           ) : <div className="empty">Todos los proyectos activos están en plan.</div>}
         </Card>
-        <Card title="Próximos hitos (30 días)">
-          {proximosHitos.length ? (
-            <div className="timeline">
-              {proximosHitos.map((h) => {
-                const p = db.proyectos.find((x) => x.id === h.proyecto_id)!;
-                return (
-                  <div className="tl-item" key={h.id}>
-                    <span className="tl-dot" style={{ background: 'var(--accent-soft)' }}><Icon name="flag" size={10} style={{ color: 'var(--accent-text)' }} /></span>
-                    <div>
-                      <div className="small strong">{h.nombre}</div>
-                      <div className="xs muted"><Link to={`/proyectos/${p.id}`}>{p.nombre}</Link> · {fFecha(h.fecha_plan)}</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : <div className="empty">Sin hitos en los próximos 30 días.</div>}
+        <Card title="Actividad reciente" sub="Comentarios, avances e hitos del equipo">
+          <ActividadReciente limite={6} />
         </Card>
       </div>
 
-      <div className="grid g2 mt">
-        <Card title="Ahorro por planta vs meta" sub="Barra: real acumulado · clara: comprometido anual · marca: meta anual">
-          <div className="stack" style={{ gap: 14 }}>
-            {db.plantas.filter((p) => plantasVisibles.includes(p.id)).map((pl) => {
-              const del = ms.filter((m) => m.p.planta_id === pl.id);
-              const r = del.reduce((s, m) => s + m.acum.real, 0);
-              const c = del.filter((m) => m.p.etapa !== 'Idea').reduce((s, m) => s + m.p.ahorro_comprometido_anual, 0);
-              const max = Math.max(pl.meta_ahorro_anual, c, r) * 1.05;
+      <div className="grid g3 mt">
+        <Card className="span2" flush title="Ahorro por planta" sub="Pasa el mouse sobre cada columna para ver qué significa">
+          <div className="table-wrap">
+            <table className="tbl">
+              <thead>
+                <tr>
+                  <th>Planta</th>
+                  <th className="num"><Concepto c="logrado" /></th>
+                  <th className="num"><Concepto c="esperado">Esperado</Concepto></th>
+                  <th>¿Al día?</th>
+                  <th className="num"><Concepto c="comprometido" /></th>
+                  <th className="num"><Concepto c="meta" /></th>
+                  <th>Cobertura meta</th>
+                </tr>
+              </thead>
+              <tbody>
+                {db.plantas.filter((p) => plantasVisibles.includes(p.id)).map((pl) => {
+                  const del = ms.filter((m) => m.p.planta_id === pl.id);
+                  const r = del.reduce((s, m) => s + m.acum.real, 0);
+                  const e = del.reduce((s, m) => s + m.acum.plan, 0);
+                  const c = del.filter((m) => m.p.etapa !== 'Idea').reduce((s, m) => s + m.p.ahorro_comprometido_anual, 0);
+                  const cob = pl.meta_ahorro_anual ? (c / pl.meta_ahorro_anual) * 100 : null;
+                  return (
+                    <tr key={pl.id}>
+                      <td className="strong nowrap"><Link to="/plantas">{pl.nombre}</Link></td>
+                      <td className="num strong">{fMM(r)}</td>
+                      <td className="num">{fMM(e)}</td>
+                      <td><Cumplimiento logrado={r} esperado={e} /></td>
+                      <td className="num">{fMM(c)}</td>
+                      <td className="num">{fMM(pl.meta_ahorro_anual)}</td>
+                      <td className="small">{cob == null ? '—' : cob >= 100
+                        ? <span className="txt-good strong">{fPct0(cob)} cubierta</span>
+                        : <span className="txt-crit strong">{fPct0(cob)} · faltan {fMM(pl.meta_ahorro_anual - c)}</span>}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+        <Card title="Pendientes" sub="Acciones vencidas y próximos hitos (30 días)" actions={<Link className="btn sm" to="/acciones?vencidas=1">Ver acciones</Link>}>
+          <div className="timeline">
+            {accVencidas.sort((x, y) => x.fecha_vencimiento.localeCompare(y.fecha_vencimiento)).slice(0, 4).map((a) => (
+              <div className="tl-item" key={a.id}>
+                <span className="tl-dot" style={{ background: 'var(--crit-bg)' }}><Icon name="alert" size={11} style={{ color: 'var(--crit)' }} /></span>
+                <div>
+                  <div className="small strong">{a.descripcion}</div>
+                  <div className="xs muted">{perfil(a.responsable_id)?.nombre ?? 'Sin responsable'} · <span className="txt-crit">venció hace {diasEntre(a.fecha_vencimiento, hoy)} días</span></div>
+                </div>
+              </div>
+            ))}
+            {proximosHitos.slice(0, 4).map((h) => {
+              const p = db.proyectos.find((x) => x.id === h.proyecto_id)!;
               return (
-                <div key={pl.id}>
-                  <div className="row between small"><b>{pl.nombre}</b><span className="muted num">{fMM(r)} real · {fMM(c)} comprometido · meta {fMM(pl.meta_ahorro_anual)}</span></div>
-                  <div style={{ marginTop: 6 }}><Meter value={r} soft={c} mark={pl.meta_ahorro_anual} max={max} label={`Ahorro ${pl.nombre}`} /></div>
+                <div className="tl-item" key={h.id}>
+                  <span className="tl-dot" style={{ background: 'var(--accent-soft)' }}><Icon name="flag" size={10} style={{ color: 'var(--accent-text)' }} /></span>
+                  <div>
+                    <div className="small strong">{h.nombre}</div>
+                    <div className="xs muted"><Link to={`/proyectos/${p.id}`}>{p.nombre}</Link> · {fFecha(h.fecha_plan)}</div>
+                  </div>
                 </div>
               );
             })}
+            {!accVencidas.length && !proximosHitos.length && <div className="empty">Nada pendiente.</div>}
           </div>
-        </Card>
-        <Card title="Acciones vencidas" sub="Planes de acción con fecha comprometida ya pasada" actions={<Link className="btn sm" to="/acciones?vencidas=1">Ver todas</Link>}>
-          {accVencidas.length ? (
-            <div className="timeline">
-              {accVencidas.sort((x, y) => x.fecha_vencimiento.localeCompare(y.fecha_vencimiento)).slice(0, 6).map((a) => (
-                <div className="tl-item" key={a.id}>
-                  <span className="tl-dot" style={{ background: 'var(--surface-2)' }}><Icon name="alert" size={11} style={{ color: 'var(--crit)' }} /></span>
-                  <div>
-                    <div className="small strong">{a.descripcion}</div>
-                    <div className="xs muted">{perfil(a.responsable_id)?.nombre ?? 'Sin responsable'} · venció {fFecha(a.fecha_vencimiento)} ({diasEntre(a.fecha_vencimiento, hoy)} días)</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : <div className="empty">Sin acciones vencidas.</div>}
         </Card>
       </div>
     </>

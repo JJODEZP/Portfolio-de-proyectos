@@ -2,7 +2,7 @@
 // para que el demo siempre muestre un año en curso con meses cerrados.
 import { toISO, ultimoMesCerrado } from '../lib/calc';
 import type {
-  Accion, BeneficioMensual, CausaRaiz, Checkin, ClaseCosto, CostoMensual, Etapa, Hito, Kpi, Oportunidad,
+  Accion, BeneficioMensual, CausaRaiz, Checkin, ClaseCosto, Comentario, CostoMensual, Etapa, Hito, Kpi, Oportunidad,
   Perfil, Planta, Proyecto, Replicacion, Salud, Tables, TipoBeneficio, TipoProyecto,
 } from '../lib/types';
 
@@ -220,8 +220,20 @@ export function buildSeed(now = new Date()): Tables {
     { id: 'ac-11', descripcion: 'Plan de retención en empaque con RR.HH.', responsable_id: 'u-fuentes', fecha_vencimiento: day(20), estado: 'Pendiente', proyecto_id: null, causa_id: 'ca-6' },
   ];
 
+  // Comentarios: hora relativa a ahora (horas atrás)
+  const hace = (h: number) => new Date(now.getTime() - h * 3_600_000).toISOString();
+  const comentarios: Comentario[] = [
+    { id: 'cm-1', proyecto_id: 'pr-02', autor_id: 'u-jlm', fecha: hace(50), texto: 'María, el rendimiento sigue bajo la curva. ¿Qué necesitas para cerrar la capacitación de operadores este mes?' },
+    { id: 'cm-2', proyecto_id: 'pr-02', autor_id: 'u-perez', fecha: hace(46), texto: 'El proveedor de cuchillos atrasó la entrega 2 semanas. Propongo partir la capacitación con el set actual en el turno A.' },
+    { id: 'cm-3', proyecto_id: 'pr-02', autor_id: 'u-cg', fecha: hace(20), texto: 'Ok. Dejo registrado que el beneficio de este mes queda en 74 % del plan; revisamos de nuevo en el comité del lunes.' },
+    { id: 'cm-4', proyecto_id: 'pr-07', autor_id: 'u-nunez', fecha: hace(30), texto: 'Pareto listo: 3 causas explican el 68 % de la merma en empaque. Subo el detalle al estándar esta semana.' },
+    { id: 'cm-5', proyecto_id: 'pr-03', autor_id: 'u-jro', fecha: hace(72), texto: 'Nos interesa replicar condensados en Rosario. ¿Podemos agendar visita técnica?' },
+    { id: 'cm-6', proyecto_id: 'pr-03', autor_id: 'u-rojas', fecha: hace(70), texto: 'Felipe, sí. Te envío la ingeniería y coordinamos visita para la próxima semana.' },
+    { id: 'cm-7', proyecto_id: 'pr-04', autor_id: 'u-ge', fecha: hace(8), texto: 'Buen avance. Necesito la medición y verificación del ahorro antes del cierre trimestral.' },
+  ];
+
   return {
     plantas, perfiles, clases_costo: CLASES, oportunidades, proyectos, hitos, checkins,
-    beneficios_mensuales: beneficios, kpis, replicaciones, costos_mensuales: costos, causas_raiz: causas, acciones,
+    beneficios_mensuales: beneficios, kpis, replicaciones, costos_mensuales: costos, causas_raiz: causas, acciones, comentarios,
   };
 }

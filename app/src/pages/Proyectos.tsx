@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { AHORRO, Concepto, Cumplimiento } from '../components/ahorro';
 import { Icon } from '../components/Icon';
 import { Card, Empty, EtapaBadge, Meter, SaludBadge, Seg } from '../components/ui';
 import { useStore } from '../data/store';
 import { useMetricas, useProyectosVisibles, type MetricaProyecto } from '../data/useMetricas';
 import { hoyISO } from '../lib/calc';
-import { fFecha, fMM, fPct0 } from '../lib/format';
+import { fFecha, fMM } from '../lib/format';
 import { puedeAprobar, puedeCrearProyecto, puedeEditarProyecto } from '../lib/permissions';
 import { ETAPAS, TIPOS, type Etapa, type Salud } from '../lib/types';
 import { ETAPAS_CON_APROBACION, nuevoProyecto, ProyectoForm } from './ProyectoForm';
@@ -90,7 +91,7 @@ export function Proyectos() {
                 <thead>
                   <tr>
                     <th>Proyecto</th><th>Planta · Líder</th><th>Etapa</th><th>Salud</th><th style={{ minWidth: 130 }}>Avance real / plan</th>
-                    <th className="num">Comprometido anual</th><th className="num">Real acumulado</th><th className="num">Cumpl.</th><th>Término</th>
+                    <th className="num"><Concepto c="comprometido" /></th><th className="num"><Concepto c="logrado" /></th><th>¿Al día?</th><th className="num" title="Comentarios"><Icon name="message" size={13} /></th><th>Término</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -108,8 +109,9 @@ export function Proyectos() {
                         <div className="xs muted num" style={{ marginTop: 3 }}>{m.avance}% · plan {m.esperado}%</div>
                       </td>
                       <td className="num">{fMM(m.p.ahorro_comprometido_anual)}</td>
-                      <td className="num">{fMM(m.acum.real)}</td>
-                      <td className="num">{m.acum.plan ? fPct0((m.acum.real / m.acum.plan) * 100) : '—'}</td>
+                      <td className="num strong">{fMM(m.acum.real)}</td>
+                      <td><Cumplimiento logrado={m.acum.real} esperado={m.acum.plan} /></td>
+                      <td className="num muted">{db.comentarios.filter((c) => c.proyecto_id === m.p.id).length || ''}</td>
                       <td className="small nowrap">{fFecha(m.p.fecha_fin_plan)}</td>
                     </tr>
                   ))}
@@ -147,7 +149,9 @@ function KCard({ m, onMove }: { m: MetricaProyecto; onMove: (id: string, e: Etap
   const nav = useNavigate();
   const editable = puedeEditarProyecto(me, m.p);
   const idx = ETAPAS.indexOf(m.p.etapa);
-  const reps = useStore().db.replicaciones.filter((r) => r.proyecto_id === m.p.id);
+  const { db } = useStore();
+  const reps = db.replicaciones.filter((r) => r.proyecto_id === m.p.id);
+  const nCom = db.comentarios.filter((c) => c.proyecto_id === m.p.id).length;
   return (
     <div className="kcard" draggable={editable} onDragStart={(e) => e.dataTransfer.setData('text/plain', m.p.id)} onClick={() => nav(`/proyectos/${m.p.id}`)}>
       <div className="row between" style={{ alignItems: 'flex-start', flexWrap: 'nowrap' }}>
@@ -158,11 +162,14 @@ function KCard({ m, onMove }: { m: MetricaProyecto; onMove: (id: string, e: Etap
       <Meter value={m.avance} mark={m.esperado} label="Avance" />
       <div className="row between xs">
         <span className="muted">{m.avance}% avance</span>
-        <span className="strong num">{fMM(m.p.ahorro_comprometido_anual)} MM/año</span>
+        <span className="num" title={AHORRO.comprometido.def}><span className="sw-dot" style={{ background: AHORRO.comprometido.color, marginRight: 4 }} /><b>{fMM(m.p.ahorro_comprometido_anual)}</b> MM/año</span>
       </div>
-      {(reps.length > 0 || editable) && (
+      {(reps.length > 0 || nCom > 0 || editable) && (
         <div className="row between xs">
-          <span className="muted">{reps.length ? <><Icon name="repeat" size={11} /> {reps.filter((r) => r.estado === 'Replicado').length}/{reps.length} réplicas</> : ''}</span>
+          <span className="muted">
+            {reps.length ? <><Icon name="repeat" size={11} /> {reps.filter((r) => r.estado === 'Replicado').length}/{reps.length} réplicas</> : ''}
+            {nCom > 0 && <span style={{ marginLeft: 8 }}><Icon name="message" size={11} /> {nCom}</span>}
+          </span>
           {editable && (
             <span className="row" style={{ gap: 2 }} onClick={(e) => e.stopPropagation()}>
               <button className="btn sm ghost icon" disabled={idx === 0} onClick={() => onMove(m.p.id, ETAPAS[idx - 1])} aria-label="Etapa anterior" title="Etapa anterior"><Icon name="arrowLeft" size={13} /></button>

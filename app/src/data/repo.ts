@@ -17,7 +17,7 @@ export interface Repo {
 }
 
 // ---------------------------------------------------------------- demo
-const KEY = 'ct-proyectos-v1';
+const KEY = 'ct-proyectos-v2';
 const KEY_USER = 'ct-proyectos-demo-user';
 
 export class LocalRepo implements Repo {

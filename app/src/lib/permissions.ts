@@ -45,3 +45,10 @@ export function puedeEditarAccion(me: Perfil | null, a: Accion, db: Tables) {
 
 /** Puede crear acciones sueltas (no vinculadas a un proyecto ni causa). */
 export const puedeCrearAccion = (me: Perfil | null) => !!me && me.rol !== 'gerencia';
+
+/** Comentar: cualquier usuario con perfil, incluida Gerencia. */
+export const puedeComentar = (me: Perfil | null) => !!me;
+
+export function puedeBorrarComentario(me: Perfil | null, autorId: string) {
+  return !!me && (me.rol === 'admin' || me.id === autorId);
+}

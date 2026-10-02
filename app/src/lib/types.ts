@@ -157,6 +157,14 @@ export interface Accion {
   causa_id: string | null;
 }
 
+export interface Comentario {
+  id: string;
+  proyecto_id: string;
+  autor_id: string;
+  fecha: string; // ISO con hora
+  texto: string;
+}
+
 export interface Tables {
   plantas: Planta[];
   perfiles: Perfil[];
@@ -171,6 +179,7 @@ export interface Tables {
   costos_mensuales: CostoMensual[];
   causas_raiz: CausaRaiz[];
   acciones: Accion[];
+  comentarios: Comentario[];
 }
 
 export type TableName = keyof Tables;
@@ -178,7 +187,7 @@ export type Row<T extends TableName> = Tables[T][number];
 
 export const TABLE_NAMES: TableName[] = [
   'plantas', 'perfiles', 'clases_costo', 'oportunidades', 'proyectos', 'hitos', 'checkins',
-  'beneficios_mensuales', 'kpis', 'replicaciones', 'costos_mensuales', 'causas_raiz', 'acciones',
+  'beneficios_mensuales', 'kpis', 'replicaciones', 'costos_mensuales', 'causas_raiz', 'acciones', 'comentarios',
 ];
 
 export const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];

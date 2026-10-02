@@ -21,3 +21,18 @@ export const fMes = (anio: number, mes: number) => `${MESES[mes - 1]} ${String(a
 
 export const uid = (prefijo = '') =>
   prefijo + (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36));
+
+/** "hace 5 min", "hace 3 h", "hace 2 d" o la fecha si es más antiguo. */
+export function fHace(iso: string, now = Date.now()) {
+  const min = Math.round((now - Date.parse(iso)) / 60_000);
+  if (min < 1) return 'recién';
+  if (min < 60) return `hace ${min} min`;
+  const h = Math.round(min / 60);
+  if (h < 24) return `hace ${h} h`;
+  const d = Math.round(h / 24);
+  if (d <= 14) return `hace ${d} d`;
+  return fFecha(iso);
+}
+
+export const iniciales = (nombre = '') =>
+  nombre.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]!.toUpperCase()).join('') || '?';
