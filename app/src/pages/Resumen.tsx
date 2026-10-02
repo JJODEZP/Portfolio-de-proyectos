@@ -62,7 +62,7 @@ export function Resumen() {
       </div>
 
       <div className="grid g3">
-        <Card className="span2" title="Ahorro del portafolio" sub={`Millones de CLP · lo logrado se mide hasta el cierre de ${MESES[cierre.mes - 1]} ${cierre.anio}. Pasa el mouse sobre cada concepto para ver su definición.`}>
+        <Card className="span2" title="Ahorro del portafolio" actions={<Link className="btn sm ghost" to="/metodologia?s=ahorro"><Icon name="info" size={13} /> Cómo se calcula</Link>} sub={`Millones de CLP · lo logrado se mide hasta el cierre de ${MESES[cierre.mes - 1]} ${cierre.anio}. Pasa el mouse sobre cada concepto para ver su definición.`}>
           <PanelAhorro logrado={realYtd} esperado={planYtd} comprometido={comprometido} meta={meta} />
         </Card>
         <div className="stack">

@@ -14,7 +14,10 @@ Sistema web para gestionar el portafolio de proyectos estratégicos, Kaizen e in
 | Ficha de proyecto | Hitos (cronograma), beneficios mensuales y ROI, KPIs operativos, check-ins del líder, acciones, replicabilidad entre plantas, aprobación |
 | Plantas y líderes | Scorecard por planta y por líder (cumplimiento, atrasos, check-ins al día) |
 | Beneficios y ROI | Detalle financiero de todo el portafolio, por clase de costo y tipo de beneficio; KPIs no financieros |
-| Árbol de oportunidades | Clase de costo → oportunidad → proyectos: potencial vs identificado vs realizado y brecha sin cubrir |
+| Hoja de ruta | Calendario del portafolio por planta: duración, avance real, hitos y línea de hoy |
+| Árbol de oportunidades | Cascada brecha medida → potencial → en proyectos → logrado. Cada oportunidad muestra su fórmula (costo base × % de mejora) y la lista de potencial sin proyecto se convierte en proyecto con un clic |
+| Priorización | Ahorro ponderado por riesgo (probabilidad por etapa), matriz valor-esfuerzo y ranking por puntaje |
+| Cómo se calcula | Todas las fórmulas con un ejemplo armado con los datos actuales |
 | Desviaciones de costo | Real vs presupuesto vs estándar (mes / acumulado), mapa de calor por planta, causas raíz cuantificadas, presupuesto editable y proyección de cierre |
 | Planes de acción | Acciones de proyectos y de causas raíz, con vencimientos |
 | Datos y administración | Plantas y metas, usuarios y roles, clases de costo, exportación CSV para Power BI, respaldo JSON |
@@ -43,6 +46,18 @@ En la ficha de cada proyecto, la barra **«Actualizar proyecto»** permite:
 - **Agregar hito**, **registrar avance**, **registrar el ahorro del mes**, **crear una acción** y **agregar un KPI:** el líder, el jefe de planta y Control de Gestión.
 
 El resumen ejecutivo muestra la **actividad reciente** del equipo: comentarios, avances e hitos completados. En el modo demo, todo lo que se agrega queda guardado en el navegador de cada persona. Con Supabase queda compartido para todo el equipo; la migración `002_comentarios.sql` agrega la tabla de comentarios con sus permisos.
+
+## Gestión de portafolio
+
+- **Gates (stage-gate):** para avanzar de etapa, el proyecto debe cumplir criterios que se revisan automáticamente. Por ejemplo, para pasar a ejecución necesita línea base, sponsor, 3 o más hitos, KPI, curva plan y aprobación. La ficha muestra el checklist. Solo Control de Gestión puede avanzar por excepción.
+- **Probabilidad por etapa:** Idea 20 %, Evaluación 50 %, En ejecución 80 %, Implementado 95 %, Cerrado 100 %. El líder puede ajustarla.
+  - Ahorro ponderado = comprometido × probabilidad.
+- **Priorización:**
+  - Puntaje = ahorro ponderado ÷ complejidad (1–5).
+  - La matriz cruza el valor (sobre o bajo la mediana) con el esfuerzo (complejidad 4–5 = alto).
+- **Árbol de oportunidades:**
+  - Potencial = costo base anual × % de mejora según una referencia (estándar, mejor planta, benchmark o cotización).
+  - Brecha medida = (real − estándar) de los meses cerrados × 12 ÷ meses.
 
 ## Reglas de medición
 
@@ -86,7 +101,7 @@ Después de cambiar el código, ejecuta `npm run build` y commitea `dashboard/` 
 ## Pasar a producción con Supabase
 
 1. Crea un proyecto en [supabase.com](https://supabase.com).
-2. En **SQL Editor**, ejecuta `supabase/migrations/001_schema.sql` y luego `002_comentarios.sql`. Después ejecuta `supabase/seed_base.sql`, con tus plantas y tu email de administrador.
+2. En **SQL Editor**, ejecuta en orden `supabase/migrations/001_schema.sql`, `002_comentarios.sql` y `003_portafolio.sql`. Después ejecuta `supabase/seed_base.sql`, con tus plantas y tu email de administrador.
 3. En **Authentication → URL Configuration**, agrega la URL donde publicarás la app (por ejemplo `https://<usuario>.github.io/<repo>/dashboard/`).
 4. Crea `app/.env` a partir de `.env.example` con `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`. Ejecuta `npm run build` y publica `dashboard/`.
    - Mantén el demo público aparte: compílalo sin `.env` en otra carpeta o en otro sitio.
@@ -113,7 +128,8 @@ En Power BI, ve a *Obtener datos → Base de datos PostgreSQL* y usa el host y p
 | `vw_proyectos` | Una fila por proyecto: avance, hitos atrasados, ahorro plan/real acumulado, ROI, payback, último check-in |
 | `vw_beneficios_mensuales` | Serie mensual plan vs real por proyecto y planta |
 | `vw_desviacion_costos` | Real vs presupuesto vs estándar por planta, clase y mes |
-| `vw_cobertura_oportunidades` | Potencial vs identificado por oportunidad |
+| `vw_cobertura_oportunidades` | Potencial vs en proyectos por oportunidad |
+| `vw_portafolio_ponderado` | Probabilidad y ahorro ponderado por riesgo de cada proyecto |
 
 ## Stack
 

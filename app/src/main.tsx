@@ -9,11 +9,14 @@ import { Acciones } from './pages/Acciones';
 import { Admin } from './pages/Admin';
 import { Beneficios } from './pages/Beneficios';
 import { Costos } from './pages/Costos';
+import { Metodologia } from './pages/Metodologia';
 import { Oportunidades } from './pages/Oportunidades';
 import { Plantas } from './pages/Plantas';
+import { Priorizacion } from './pages/Priorizacion';
 import { ProyectoDetalle } from './pages/ProyectoDetalle';
 import { Proyectos } from './pages/Proyectos';
 import { Resumen } from './pages/Resumen';
+import { Roadmap } from './pages/Roadmap';
 import './styles.css';
 
 function Login() {
@@ -62,12 +65,15 @@ function App() {
         <Route path="/" element={<Resumen />} />
         <Route path="/proyectos" element={<Proyectos />} />
         <Route path="/proyectos/:id" element={<ProyectoDetalle />} />
+        <Route path="/roadmap" element={<Roadmap />} />
         <Route path="/plantas" element={<Plantas />} />
         <Route path="/beneficios" element={<Beneficios />} />
         <Route path="/oportunidades" element={<Oportunidades />} />
+        <Route path="/priorizacion" element={<Priorizacion />} />
         <Route path="/costos" element={<Costos />} />
         <Route path="/acciones" element={<Acciones />} />
         <Route path="/admin" element={<Admin />} />
+        <Route path="/metodologia" element={<Metodologia />} />
         <Route path="*" element={<Resumen />} />
       </Routes>
     </Layout>

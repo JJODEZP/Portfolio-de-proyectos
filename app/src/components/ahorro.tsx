@@ -4,13 +4,16 @@ import { fMM, fPct0, fSigno } from '../lib/format';
 import { Icon } from './Icon';
 import { useTip } from './ui';
 
-export type ConceptoAhorro = 'logrado' | 'esperado' | 'comprometido' | 'meta';
+export type ConceptoAhorro = 'logrado' | 'esperado' | 'comprometido' | 'meta' | 'potencial' | 'brecha' | 'sinProyecto';
 
 export const AHORRO: Record<ConceptoAhorro, { label: string; color: string; def: string }> = {
   logrado: { label: 'Logrado', color: 'var(--c-real)', def: 'Ahorro real medido contra la línea base, hasta el último mes cerrado.' },
   esperado: { label: 'Esperado a la fecha', color: 'var(--c-plan)', def: 'Lo que ya deberíamos haber ahorrado según la curva plan de los proyectos, hasta el último mes cerrado.' },
   comprometido: { label: 'Comprometido (año)', color: 'var(--c-comp)', def: 'Ahorro anual que prometen los proyectos aprobados o en evaluación.' },
   meta: { label: 'Meta anual', color: 'var(--c-meta)', def: 'Ahorro que la planta debe lograr este año (lo fija Control de Gestión).' },
+  brecha: { label: 'Brecha vs estándar', color: 'var(--neg)', def: 'Cuánto estamos gastando por sobre el costo estándar, llevado a un año: (costo real − costo estándar de los meses cerrados) × 12 ÷ meses cerrados.' },
+  potencial: { label: 'Potencial', color: 'var(--c-pot)', def: 'Ahorro anual máximo si se captura la oportunidad completa: costo base anual × % de mejora alcanzable según una referencia (estándar, mejor planta, benchmark o cotización).' },
+  sinProyecto: { label: 'Sin proyecto', color: 'var(--c-pot-soft)', def: 'Potencial que todavía no ataca ningún proyecto: potencial − comprometido en proyectos. Es la cartera de nuevas iniciativas.' },
 };
 
 /** Punto de color + nombre del concepto; al pasar el mouse muestra la definición. */

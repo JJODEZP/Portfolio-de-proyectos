@@ -53,16 +53,16 @@ export function buildSeed(now = new Date()): Tables {
   ];
 
   const oportunidades: Oportunidad[] = [
-    { id: 'op-1', clase_id: 'mo', nombre: 'Horas extra y gestión de turnos', potencial: 320 },
-    { id: 'op-2', clase_id: 'mo', nombre: 'Productividad y balanceo de línea', potencial: 360 },
-    { id: 'op-3', clase_id: 'rend', nombre: 'Rendimiento de despiece', potencial: 460 },
-    { id: 'op-4', clase_id: 'rend', nombre: 'Precisión de pesaje y giveaway', potencial: 160 },
-    { id: 'op-5', clase_id: 'ins', nombre: 'Consumo de envases y films', potencial: 210 },
-    { id: 'op-6', clase_id: 'ins', nombre: 'Costo unitario de químicos', potencial: 170 },
-    { id: 'op-7', clase_id: 'mer', nombre: 'Merma de proceso y reproceso', potencial: 260 },
-    { id: 'op-8', clase_id: 'mer', nombre: 'Merma por frío y logística', potencial: 150 },
-    { id: 'op-9', clase_id: 'ene', nombre: 'Eficiencia eléctrica y refrigeración', potencial: 320 },
-    { id: 'op-10', clase_id: 'ene', nombre: 'Vapor, condensados y agua', potencial: 240 },
+    { id: 'op-1', clase_id: 'mo', nombre: 'Horas extra y gestión de turnos', costo_base: 1600, mejora_pct: 20, referencia: 'Horas extra por cabeza vs mejor planta (Rosario): −20 %', potencial: 320 },
+    { id: 'op-2', clase_id: 'mo', nombre: 'Productividad y balanceo de línea', costo_base: 7200, mejora_pct: 5, referencia: 'HH por cabeza 0,42 vs benchmark 0,40', potencial: 360 },
+    { id: 'op-3', clase_id: 'rend', nombre: 'Rendimiento de despiece', costo_base: 9200, mejora_pct: 5, referencia: 'Rendimiento despiece 71,8 % vs estándar 73,2 %', potencial: 460 },
+    { id: 'op-4', clase_id: 'rend', nombre: 'Precisión de pesaje y giveaway', costo_base: 3200, mejora_pct: 5, referencia: 'Giveaway 2,3 % vs buena práctica 1,2 %', potencial: 160 },
+    { id: 'op-5', clase_id: 'ins', nombre: 'Consumo de envases y films', costo_base: 2100, mejora_pct: 10, referencia: 'Film 18,4 g/bandeja vs estándar 16,5 g', potencial: 210 },
+    { id: 'op-6', clase_id: 'ins', nombre: 'Costo unitario de químicos', costo_base: 850, mejora_pct: 20, referencia: 'Precio actual vs licitación consolidada (cotizaciones)', potencial: 170 },
+    { id: 'op-7', clase_id: 'mer', nombre: 'Merma de proceso y reproceso', costo_base: 1300, mejora_pct: 20, referencia: 'Merma de proceso 1,9 % vs estándar 1,2 %', potencial: 260 },
+    { id: 'op-8', clase_id: 'mer', nombre: 'Merma por frío y logística', costo_base: 750, mejora_pct: 20, referencia: 'Pérdida de peso en cámara 0,65 % vs 0,40 %', potencial: 150 },
+    { id: 'op-9', clase_id: 'ene', nombre: 'Eficiencia eléctrica y refrigeración', costo_base: 2000, mejora_pct: 16, referencia: 'kWh por tonelada vs benchmark de la industria', potencial: 320 },
+    { id: 'op-10', clase_id: 'ene', nombre: 'Vapor, condensados y agua', costo_base: 1600, mejora_pct: 15, referencia: 'Gas m³ por tonelada vs mejor planta', potencial: 240 },
   ];
 
   // ---------- Proyectos ----------
@@ -92,6 +92,8 @@ export function buildSeed(now = new Date()): Tables {
     { nombre: 'Mantenimiento autónomo en túneles de frío', tipo: 'Proyecto', etapa: 'En ejecución', planta: 'pl-vc', clase: 'ene', op: 'op-9', lider: 'u-araya', sponsor: 'Daniela Paz', ahorro: 90, inicio: -2, dur: 6, desempeno: 0.9, capex: 12, opex: 6, benef: 'Costo evitado', base: '14 detenciones/mes por escarcha', kpi: ['Detenciones por escarcha', 'eventos/mes', 14, 4, 9, 'menor'], hitos: ['Limpieza inicial', 'Estándares TPM', 'Auditorías', 'Cierre'], desc: 'TPM para evitar detenciones y sobreconsumo en túneles.' },
   ];
 
+  // Complejidad 1–5 por proyecto (mismo orden que defs)
+  const COMPLEJIDAD = [2, 4, 3, 4, 1, 2, 2, 1, 3, 3, 1, 3, 1, 2, 2];
   const proyectos: Proyecto[] = [];
   const hitos: Hito[] = [];
   const beneficios: BeneficioMensual[] = [];
@@ -115,6 +117,7 @@ export function buildSeed(now = new Date()): Tables {
       inversion_capex: d.capex, inversion_opex: d.opex,
       aprobado, aprobado_por: aprobado ? (perfiles.find((p) => p.planta_id === d.planta && p.rol === 'jefe_planta')?.id ?? null) : null,
       aprobado_en: aprobado ? inicio : null,
+      complejidad: COMPLEJIDAD[i] ?? 3, probabilidad: null,
     });
 
     // Hitos repartidos entre inicio y fin; se completan según la etapa

@@ -149,3 +149,110 @@ export function aggCostos(rows: CostoMensual[], f: { plantas?: string[]; clase?:
 export function saludDesviacion(pct: number): Salud {
   return pct >= 3 ? 'rojo' : pct > 0.5 ? 'amarillo' : 'verde';
 }
+
+// ======================================================================
+// Gestión de portafolio: probabilidad, valor ponderado, brecha, gates, priorización
+// ======================================================================
+
+/** Probabilidad estándar de capturar el ahorro según la etapa (práctica stage-gate). */
+export const PROB_ETAPA: Record<Proyecto['etapa'], number> = {
+  Idea: 20, 'Evaluación': 50, 'En ejecución': 80, Implementado: 95, Cerrado: 100,
+};
+
+export const probabilidad = (p: Proyecto) => p.probabilidad ?? PROB_ETAPA[p.etapa];
+
+/** Ahorro anual ponderado por riesgo = comprometido × probabilidad. */
+export const ahorroPonderado = (p: Proyecto) => (p.ahorro_comprometido_anual * probabilidad(p)) / 100;
+
+/** Potencial de una oportunidad = costo base anual × % de mejora alcanzable. */
+export const potencialOportunidad = (costoBase: number, mejoraPct: number) => Math.round((costoBase * mejoraPct) / 100);
+
+/**
+ * Brecha medida vs estándar, anualizada: (real − estándar) de los meses con cierre,
+ * llevado a 12 meses. Positiva = estamos gastando sobre el estándar.
+ */
+export function brechaAnualizada(rows: CostoMensual[], f: { plantas?: string[]; clase?: string; anio: number }) {
+  let dif = 0;
+  const meses = new Set<number>();
+  for (const c of rows) {
+    if (c.anio !== f.anio || c.costo_real == null) continue;
+    if (f.plantas && !f.plantas.includes(c.planta_id)) continue;
+    if (f.clase && c.clase_id !== f.clase) continue;
+    dif += c.costo_real - c.estandar;
+    meses.add(c.mes);
+  }
+  return { anual: meses.size ? (dif * 12) / meses.size : 0, meses: meses.size, acumulada: dif };
+}
+
+export const COMPLEJIDAD_LABEL = ['', 'Muy baja', 'Baja', 'Media', 'Alta', 'Muy alta'];
+
+export type Cuadrante = 'quick' | 'estrategico' | 'kaizen' | 'reconsiderar';
+export const CUADRANTES: Record<Cuadrante, { titulo: string; accion: string }> = {
+  quick: { titulo: 'Quick wins', accion: 'Alto valor, bajo esfuerzo: ejecutar primero' },
+  estrategico: { titulo: 'Proyectos estratégicos', accion: 'Alto valor, alto esfuerzo: planificar y asignar recursos' },
+  kaizen: { titulo: 'Mejoras rápidas', accion: 'Bajo valor, bajo esfuerzo: resolver con Kaizen en planta' },
+  reconsiderar: { titulo: 'Reconsiderar', accion: 'Bajo valor, alto esfuerzo: rediseñar o descartar' },
+};
+
+/** Cuadrante valor-esfuerzo: valor alto = ponderado ≥ umbral (mediana del portafolio); esfuerzo alto = complejidad ≥ 4. */
+export function cuadrante(p: Proyecto, umbralValor: number): Cuadrante {
+  const alto = ahorroPonderado(p) >= umbralValor;
+  const dificil = p.complejidad >= 4;
+  return alto ? (dificil ? 'estrategico' : 'quick') : (dificil ? 'reconsiderar' : 'kaizen');
+}
+
+/** Puntaje de priorización = ahorro ponderado ÷ complejidad (MM/año por punto de esfuerzo). */
+export const puntaje = (p: Proyecto) => ahorroPonderado(p) / Math.max(1, p.complejidad);
+
+export function mediana(xs: number[]) {
+  if (!xs.length) return 0;
+  const s = [...xs].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
+export interface Criterio { label: string; ok: boolean; ayuda: string }
+
+/** Criterios para pasar el gate hacia la siguiente etapa (o null si ya está cerrado). */
+export function criteriosGate(
+  p: Proyecto,
+  d: { hitos: Hito[]; kpis: Kpi[]; beneficios: BeneficioMensual[]; acciones: { proyecto_id: string | null; estado: string }[] },
+  cierre: Periodo = ultimoMesCerrado(),
+): { destino: Proyecto['etapa']; criterios: Criterio[] } | null {
+  const hs = d.hitos.filter((h) => h.proyecto_id === p.id);
+  const bs = d.beneficios.filter((b) => b.proyecto_id === p.id);
+  const reales = bs.filter((b) => b.ahorro_real != null);
+  switch (p.etapa) {
+    case 'Idea':
+      return { destino: 'Evaluación', criterios: [
+        { label: 'Descripción del objetivo', ok: p.descripcion.trim().length >= 10, ayuda: 'Qué problema resuelve y cómo (mín. 10 caracteres).' },
+        { label: 'Ahorro anual estimado', ok: p.ahorro_comprometido_anual > 0, ayuda: 'Orden de magnitud del beneficio en MM/año.' },
+        { label: 'Líder asignado', ok: !!p.lider_id, ayuda: 'Una persona responsable.' },
+      ] };
+    case 'Evaluación':
+      return { destino: 'En ejecución', criterios: [
+        { label: 'Línea base medible', ok: p.linea_base.trim().length >= 5, ayuda: 'Situación inicial con número y período (ej: merma 1,9 % prom. 6 meses).' },
+        { label: 'Sponsor definido', ok: p.sponsor.trim().length > 0, ayuda: 'Quien patrocina y destraba recursos.' },
+        { label: 'Plan con al menos 3 hitos', ok: hs.length >= 3, ayuda: 'Hitos con fecha y peso para medir avance.' },
+        { label: 'KPI operativo definido', ok: d.kpis.some((k) => k.proyecto_id === p.id), ayuda: 'Indicador con línea base y meta.' },
+        { label: 'Curva plan de ahorro', ok: bs.length > 0, ayuda: 'Ahorro esperado mes a mes («Generar curva plan»).' },
+        { label: 'Aprobado por jefe de planta o Control de Gestión', ok: p.aprobado, ayuda: 'Gate formal de inversión.' },
+      ] };
+    case 'En ejecución':
+      return { destino: 'Implementado', criterios: [
+        { label: 'Todos los hitos completados', ok: hs.length > 0 && hs.every((h) => h.fecha_real), ayuda: 'El plan se ejecutó completo.' },
+        { label: 'Ahorro real registrado', ok: reales.length >= 1, ayuda: 'Al menos un mes con ahorro logrado medido.' },
+      ] };
+    case 'Implementado': {
+      const plan = bs.filter((b) => b.ahorro_real != null && periodoIdx(b) <= periodoIdx(cierre)).reduce((s, b) => s + b.ahorro_plan, 0);
+      const real = reales.reduce((s, b) => s + (b.ahorro_real ?? 0), 0);
+      return { destino: 'Cerrado', criterios: [
+        { label: '3 meses de ahorro medido', ok: reales.length >= 3, ayuda: 'Demuestra que el beneficio es sostenible.' },
+        { label: 'Logrado ≥ 80 % de lo esperado', ok: plan > 0 && real / plan >= 0.8, ayuda: 'Beneficio validado contra la curva plan.' },
+        { label: 'Sin acciones abiertas', ok: !d.acciones.some((a) => a.proyecto_id === p.id && a.estado !== 'Hecha'), ayuda: 'Todo el plan de acción cerrado.' },
+      ] };
+    }
+    default:
+      return null;
+  }
+}

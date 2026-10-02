@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { AHORRO, Concepto, Cumplimiento, PanelAhorro } from '../components/ahorro';
 import { HBars } from '../components/charts';
+import { Icon } from '../components/Icon';
 import { Card, Meter, Tile } from '../components/ui';
 import { useStore } from '../data/store';
 import { useMetricas, useProyectosVisibles } from '../data/useMetricas';
@@ -30,7 +31,7 @@ export function Beneficios() {
   return (
     <>
       <div className="page-head"><div><h1>Beneficios y ROI</h1><p>Ahorro vs línea base, retorno de la inversión y KPIs operativos · real al cierre de {MESES[cierre.mes - 1]} {cierre.anio}</p></div></div>
-      <Card title="Ahorro del portafolio" sub="Pasa el mouse sobre cada concepto para ver su definición">
+      <Card title="Ahorro del portafolio" sub="Pasa el mouse sobre cada concepto para ver su definición" actions={<Link className="btn sm ghost" to="/metodologia?s=roi"><Icon name="info" size={13} /> Cómo se calcula</Link>}>
         <PanelAhorro logrado={tot.real} esperado={tot.plan} comprometido={tot.comp}
           meta={db.plantas.filter((p) => plantasVisibles.includes(p.id)).reduce((s, p) => s + p.meta_ahorro_anual, 0)} />
       </Card>

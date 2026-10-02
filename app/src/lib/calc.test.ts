@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  aggCostos, avanceEsperado, avanceProyecto, beneficioAcumulado, financiero, peorSalud, progresoKpi,
+  aggCostos, ahorroPonderado, brechaAnualizada, criteriosGate, cuadrante, mediana, potencialOportunidad, probabilidad, puntaje, avanceEsperado, avanceProyecto, beneficioAcumulado, financiero, peorSalud, progresoKpi,
   saludBeneficio, saludDesviacion, saludPlazo, ultimoMesCerrado,
 } from './calc';
 import type { BeneficioMensual, Hito, Proyecto } from './types';
@@ -77,5 +77,41 @@ describe('kpi y costos', () => {
   it('último mes cerrado', () => {
     expect(ultimoMesCerrado(new Date(2026, 9, 2))).toEqual({ anio: 2026, mes: 9 });
     expect(ultimoMesCerrado(new Date(2026, 0, 15))).toEqual({ anio: 2025, mes: 12 });
+  });
+});
+
+describe('portafolio', () => {
+  const base = { ...p, complejidad: 2, probabilidad: null, descripcion: 'Reducir merma en empaque', linea_base: 'Merma 1,9 %', sponsor: 'Jefe', aprobado: true, lider_id: 'u1' } as Proyecto;
+  it('probabilidad por etapa y ajuste manual', () => {
+    expect(probabilidad({ ...base, etapa: 'Idea' })).toBe(20);
+    expect(probabilidad({ ...base, etapa: 'En ejecución' })).toBe(80);
+    expect(probabilidad({ ...base, probabilidad: 60 })).toBe(60);
+  });
+  it('ahorro ponderado y puntaje', () => {
+    expect(ahorroPonderado(base)).toBe(96);         // 120 × 80 %
+    expect(puntaje(base)).toBe(48);                 // 96 ÷ 2
+  });
+  it('potencial de oportunidad', () => expect(potencialOportunidad(1300, 20)).toBe(260));
+  it('cuadrantes', () => {
+    expect(cuadrante(base, 50)).toBe('quick');
+    expect(cuadrante({ ...base, complejidad: 5 }, 50)).toBe('estrategico');
+    expect(cuadrante({ ...base, complejidad: 5 }, 500)).toBe('reconsiderar');
+    expect(cuadrante(base, 500)).toBe('kaizen');
+  });
+  it('mediana', () => { expect(mediana([3, 1, 2])).toBe(2); expect(mediana([1, 2, 3, 4])).toBe(2.5); expect(mediana([])).toBe(0); });
+  it('brecha anualizada vs estándar', () => {
+    const rows = [1, 2, 3].map((mes) => ({ id: String(mes), planta_id: 'a', clase_id: 'x', anio: 2026, mes, presupuesto: 100, costo_real: 105, estandar: 100 }));
+    expect(brechaAnualizada(rows, { anio: 2026 })).toEqual({ anual: 60, meses: 3, acumulada: 15 });
+  });
+  it('gate Evaluación → Ejecución', () => {
+    const g = criteriosGate({ ...base, etapa: 'Evaluación' }, { hitos: [], kpis: [], beneficios: [], acciones: [] })!;
+    expect(g.destino).toBe('En ejecución');
+    expect(g.criterios.filter((c) => !c.ok).map((c) => c.label)).toEqual(['Plan con al menos 3 hitos', 'KPI operativo definido', 'Curva plan de ahorro']);
+  });
+  it('gate Implementado → Cerrado', () => {
+    const bs = [1, 2, 3].map((m) => ben(m, 10, 9));
+    const g = criteriosGate({ ...base, etapa: 'Implementado' }, { hitos: [], kpis: [], beneficios: bs, acciones: [] }, { anio: 2026, mes: 9 })!;
+    expect(g.criterios.every((c) => c.ok)).toBe(true);
+    expect(criteriosGate({ ...base, etapa: 'Cerrado' }, { hitos: [], kpis: [], beneficios: [], acciones: [] })).toBeNull();
   });
 });

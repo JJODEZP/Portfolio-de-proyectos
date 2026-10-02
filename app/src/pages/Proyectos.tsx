@@ -7,9 +7,9 @@ import { useStore } from '../data/store';
 import { useMetricas, useProyectosVisibles, type MetricaProyecto } from '../data/useMetricas';
 import { hoyISO } from '../lib/calc';
 import { fFecha, fMM } from '../lib/format';
-import { puedeAprobar, puedeCrearProyecto, puedeEditarProyecto } from '../lib/permissions';
+import { esAdmin, puedeAprobar, puedeCrearProyecto, puedeEditarProyecto } from '../lib/permissions';
 import { ETAPAS, TIPOS, type Etapa, type Salud } from '../lib/types';
-import { ETAPAS_CON_APROBACION, nuevoProyecto, ProyectoForm } from './ProyectoForm';
+import { ETAPAS_CON_APROBACION, faltantesGate, nuevoProyecto, ProyectoForm } from './ProyectoForm';
 
 export function Proyectos() {
   const { db, me, planta, perfil, plantaDe, save, toast } = useStore();
@@ -46,6 +46,9 @@ export function Proyectos() {
     const p = db.proyectos.find((x) => x.id === id);
     if (!p || p.etapa === destino) return;
     if (!puedeEditarProyecto(me, p)) return toast('No tienes permiso para mover este proyecto.');
+    const faltan = faltantesGate(p, destino, db);
+    if (faltan.length && !esAdmin(me)) return toast(`No cumple el gate hacia «${destino}»: ${faltan.join(' · ')}`);
+    if (faltan.length) toast(`Avanzado por excepción (Control de Gestión). Pendiente: ${faltan.join(' · ')}`);
     let n = { ...p, etapa: destino };
     if (ETAPAS_CON_APROBACION.includes(destino) && !p.aprobado) {
       if (!puedeAprobar(me, p)) return toast('Requiere aprobación del jefe de planta antes de pasar a ejecución.');
@@ -53,7 +56,7 @@ export function Proyectos() {
     }
     if ((destino === 'Implementado' || destino === 'Cerrado') && !n.fecha_fin_real) n.fecha_fin_real = hoyISO();
     save('proyectos', n);
-    toast(`${p.codigo} → ${destino}`);
+    if (!faltan.length) toast(`${p.codigo} → ${destino}`);
   };
 
   const setVistaP = (v: 'tabla' | 'kanban') => { setVista(v); try { localStorage.setItem('ct-vista', v); } catch { /* */ } };

@@ -6,13 +6,13 @@ import { Icon } from '../components/Icon';
 import { Card, Empty, EtapaBadge, Field, Meter, Modal, NumInput, SaludBadge, Tile, saludColor } from '../components/ui';
 import { useStore } from '../data/store';
 import { useMetricas, type MetricaProyecto } from '../data/useMetricas';
-import { diasEntre, hoyISO, periodoIdx, progresoKpi } from '../lib/calc';
+import { criteriosGate, diasEntre, hoyISO, periodoIdx, probabilidad, progresoKpi, PROB_ETAPA, COMPLEJIDAD_LABEL, ahorroPonderado } from '../lib/calc';
 import { fFecha, fMes, fMM, fNum, fPct0, fSigno, uid } from '../lib/format';
 import { puedeAprobar, puedeComentar, puedeEditarAccion, puedeEditarProyecto, puedeEliminarProyecto } from '../lib/permissions';
 import { MESES, type BeneficioMensual, type Hito, type Kpi, type Proyecto, type Replicacion } from '../lib/types';
 import { AccionForm, nuevaAccion } from './Acciones';
 import { AhorroMesForm, CheckinForm, Comentarios, HitoForm, KpiForm } from './Colaboracion';
-import { ProyectoForm } from './ProyectoForm';
+import { faltantesGate, ProyectoForm } from './ProyectoForm';
 
 type Tab = 'resumen' | 'comentarios' | 'hitos' | 'beneficios' | 'kpis' | 'checkins' | 'acciones' | 'replicas';
 type Rapido = 'hito' | 'avance' | 'ahorro' | 'accion' | 'kpi' | null;
@@ -34,8 +34,10 @@ export function ProyectoDetalle() {
   const editable = puedeEditarProyecto(me, p);
 
   const aprobar = () => {
-    save('proyectos', { ...p, aprobado: true, aprobado_por: me!.id, aprobado_en: hoyISO(), etapa: p.etapa === 'Idea' ? 'Evaluación' : p.etapa });
-    toast('Proyecto aprobado');
+    // Aprobar no salta criterios: si es una idea que cumple su gate, pasa a Evaluación
+    const pasa = p.etapa === 'Idea' && !faltantesGate(p, 'Evaluación', db).length;
+    save('proyectos', { ...p, aprobado: true, aprobado_por: me!.id, aprobado_en: hoyISO(), etapa: pasa ? 'Evaluación' : p.etapa });
+    toast(pasa ? 'Proyecto aprobado y pasado a Evaluación' : 'Proyecto aprobado');
   };
   const eliminar = () => {
     if (!confirm(`¿Eliminar "${p.nombre}" con sus hitos, beneficios, KPIs, check-ins y acciones?`)) return;
@@ -93,6 +95,7 @@ export function ProyectoDetalle() {
         {tabs.map(([k, l, n]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}{n != null ? ` (${n})` : ''}</button>)}
       </div>
 
+      {tab === 'resumen' && <GateCard p={p} editable={editable} />}
       {tab === 'resumen' && <TabResumen m={m} onVerComentarios={() => setTab('comentarios')} />}
       {tab === 'comentarios' && <Card title="Comentarios del equipo" sub="Preguntas, acuerdos y bloqueos. Todos los usuarios pueden comentar."><Comentarios ref={comentarioRef} proyecto={p} /></Card>}
       {tab === 'hitos' && <TabHitos p={p} editable={editable} />}
@@ -113,6 +116,47 @@ export function ProyectoDetalle() {
         </Modal>
       )}
     </>
+  );
+}
+
+// ---------------------------------------------------------------- gate (stage-gate)
+function GateCard({ p, editable }: { p: Proyecto; editable: boolean }) {
+  const { db, me, save, toast } = useStore();
+  const g = criteriosGate(p, { hitos: db.hitos, kpis: db.kpis, beneficios: db.beneficios_mensuales, acciones: db.acciones });
+  if (!g) return null;
+  const ok = g.criterios.filter((c) => c.ok).length;
+  const faltan = g.criterios.filter((c) => !c.ok);
+  const soloFaltaAprobar = faltan.length === 1 && faltan[0].label.startsWith('Aprobado') && puedeAprobar(me, p);
+  const admin = me?.rol === 'admin';
+  const puede = editable && (faltan.length === 0 || soloFaltaAprobar || admin);
+  const avanzar = () => {
+    let n: Proyecto = { ...p, etapa: g.destino };
+    if (['En ejecución', 'Implementado', 'Cerrado'].includes(g.destino) && !p.aprobado) {
+      if (!puedeAprobar(me, p)) return toast('Requiere aprobación del jefe de planta o Control de Gestión.');
+      n = { ...n, aprobado: true, aprobado_por: me!.id, aprobado_en: hoyISO() };
+    }
+    if ((g.destino === 'Implementado' || g.destino === 'Cerrado') && !n.fecha_fin_real) n.fecha_fin_real = hoyISO();
+    save('proyectos', n);
+    toast(faltan.length && !soloFaltaAprobar ? `Avanzado por excepción a «${g.destino}»` : `Proyecto avanzado a «${g.destino}»`);
+  };
+  return (
+    <Card className="mt-0" title={<>Siguiente gate: {p.etapa} → {g.destino}</>}
+      sub={`Cumple ${ok} de ${g.criterios.length} criterios. Un gate asegura que el proyecto está listo antes de comprometer más recursos.`}
+      actions={editable && (
+        <button className={`btn sm ${faltan.length === 0 || soloFaltaAprobar ? 'primary' : ''}`} disabled={!puede} onClick={avanzar}
+          title={!puede ? 'Completa los criterios pendientes' : undefined}>
+          {faltan.length && !soloFaltaAprobar && admin ? 'Avanzar por excepción' : `Avanzar a ${g.destino}`} <Icon name="chevronRight" size={13} />
+        </button>
+      )}>
+      <div className="gate-list">
+        {g.criterios.map((c) => (
+          <div key={c.label} className="gate-item">
+            <Icon name={c.ok ? 'checkCircle' : 'xCircle'} size={16} style={{ color: c.ok ? 'var(--good)' : 'var(--crit)', marginTop: 1 }} />
+            <div><b>{c.label}</b><div className="ay">{c.ok ? 'Cumplido' : c.ayuda}</div></div>
+          </div>
+        ))}
+      </div>
+    </Card>
   );
 }
 
@@ -153,6 +197,9 @@ function TabResumen({ m, onVerComentarios }: { m: MetricaProyecto; onVerComentar
             <dt>Línea base</dt><dd>{p.linea_base || '—'}</dd>
             <dt>Tipo de beneficio</dt><dd>{p.tipo_beneficio}</dd>
             <dt>{AHORRO.comprometido.label}</dt><dd>{fMM(p.ahorro_comprometido_anual)} MM/año</dd>
+            <dt>Probabilidad de éxito</dt><dd>{probabilidad(p)} % {p.probabilidad == null ? `(estándar de «${p.etapa}»)` : `(ajustada; estándar ${PROB_ETAPA[p.etapa]} %)`}</dd>
+            <dt>Ahorro ponderado</dt><dd>{fMM(ahorroPonderado(p))} MM/año <span className="xs muted" style={{ fontWeight: 400 }}>= comprometido × probabilidad</span></dd>
+            <dt>Complejidad</dt><dd>{p.complejidad} · {COMPLEJIDAD_LABEL[p.complejidad]}</dd>
             <dt>Inversión</dt><dd>CAPEX {fMM(p.inversion_capex)} · OPEX {fMM(p.inversion_opex)} MM</dd>
             <dt>Fechas</dt><dd>{fFecha(p.fecha_inicio)} → {fFecha(p.fecha_fin_plan)}{p.fecha_fin_real ? ` (real ${fFecha(p.fecha_fin_real)})` : ''}</dd>
           </dl>

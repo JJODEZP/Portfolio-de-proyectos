@@ -47,6 +47,13 @@ export interface Oportunidad {
   id: string;
   clase_id: string;
   nombre: string;
+  /** Costo anual (MM) sobre el que actúa la oportunidad. */
+  costo_base: number;
+  /** % de ese costo que se puede reducir (según referencia). */
+  mejora_pct: number;
+  /** De dónde sale el %: benchmark, estándar, mejor planta, cotización… */
+  referencia: string;
+  /** potencial = costo_base × mejora_pct / 100 (se guarda calculado). */
   potencial: number;
 }
 
@@ -74,6 +81,10 @@ export interface Proyecto {
   aprobado: boolean;
   aprobado_por: string | null;
   aprobado_en: string | null;
+  /** Dificultad de implementación 1 (muy baja) a 5 (muy alta). */
+  complejidad: number;
+  /** Probabilidad de éxito ajustada (%); null = valor estándar de la etapa. */
+  probabilidad: number | null;
 }
 
 export interface Hito {

@@ -7,12 +7,15 @@ import { Icon, type IconName } from './Icon';
 const NAV: [string, string, IconName][] = [
   ['/', 'Resumen ejecutivo', 'dashboard'],
   ['/proyectos', 'Proyectos', 'folder'],
+  ['/roadmap', 'Hoja de ruta', 'calendar'],
   ['/plantas', 'Plantas y líderes', 'factory'],
   ['/beneficios', 'Beneficios y ROI', 'coins'],
   ['/oportunidades', 'Árbol de oportunidades', 'tree'],
+  ['/priorizacion', 'Priorización', 'target'],
   ['/costos', 'Desviaciones de costo', 'trend'],
   ['/acciones', 'Planes de acción', 'checkSquare'],
   ['/admin', 'Datos y administración', 'settings'],
+  ['/metodologia', 'Cómo se calcula', 'book'],
 ];
 
 function useTheme() {

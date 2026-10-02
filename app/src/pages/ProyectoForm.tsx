@@ -1,12 +1,28 @@
 import { useState } from 'react';
 import { Field, Modal, NumInput } from '../components/ui';
 import { useStore } from '../data/store';
-import { hoyISO } from '../lib/calc';
+import { COMPLEJIDAD_LABEL, criteriosGate, hoyISO, PROB_ETAPA } from '../lib/calc';
 import { uid } from '../lib/format';
-import { puedeAprobar } from '../lib/permissions';
+import { esAdmin, puedeAprobar } from '../lib/permissions';
 import { ETAPAS, TIPOS, TIPOS_BENEFICIO, type Etapa, type Proyecto } from '../lib/types';
 
 export const ETAPAS_CON_APROBACION: Etapa[] = ['En ejecución', 'Implementado', 'Cerrado'];
+
+/**
+ * Criterios no cumplidos al avanzar de `p.etapa` a `destino` (recorre cada gate intermedio).
+ * El criterio de aprobación no se cuenta: la aprobación la otorga quien guarda si tiene permiso.
+ */
+export function faltantesGate(p: Proyecto, destino: Etapa, db: ReturnType<typeof useStore>['db']): string[] {
+  const faltan: string[] = [];
+  let actual = p;
+  while (ETAPAS.indexOf(actual.etapa) < ETAPAS.indexOf(destino)) {
+    const g = criteriosGate(actual, { hitos: db.hitos, kpis: db.kpis, beneficios: db.beneficios_mensuales, acciones: db.acciones });
+    if (!g) break;
+    for (const c of g.criterios) if (!c.ok && !c.label.startsWith('Aprobado')) faltan.push(c.label);
+    actual = { ...actual, etapa: g.destino };
+  }
+  return faltan;
+}
 
 export function nuevoProyecto(db: ReturnType<typeof useStore>['db'], me: ReturnType<typeof useStore>['me'], plantaFiltro: string): Proyecto {
   const anio = new Date().getFullYear();
@@ -19,6 +35,7 @@ export function nuevoProyecto(db: ReturnType<typeof useStore>['db'], me: ReturnT
     lider_id: me?.rol === 'lider' ? me.id : '', sponsor: '', fecha_inicio: hoyISO(), fecha_fin_plan: fin.toISOString().slice(0, 10),
     fecha_fin_real: null, avance_manual: 0, linea_base: '', tipo_beneficio: 'Ahorro duro', ahorro_comprometido_anual: 0,
     inversion_capex: 0, inversion_opex: 0, aprobado: false, aprobado_por: null, aprobado_en: null,
+    complejidad: 3, probabilidad: null,
   };
 }
 
@@ -36,6 +53,9 @@ export function ProyectoForm({ inicial, onClose, onSaved }: { inicial: Proyecto;
     if (!f.nombre.trim()) return toast('El proyecto necesita un nombre.');
     if (!f.lider_id) return toast('Asigna un líder de proyecto.');
     if (f.fecha_fin_plan < f.fecha_inicio) return toast('La fecha de término no puede ser anterior al inicio.');
+    const original = db.proyectos.find((x) => x.id === f.id);
+    const faltan = faltantesGate(original ?? { ...f, etapa: 'Idea' }, f.etapa, db);
+    if (faltan.length && !esAdmin(me)) return toast(`No cumple el gate: ${faltan.join(' · ')}`);
     let p = f;
     if (ETAPAS_CON_APROBACION.includes(f.etapa) && !f.aprobado) {
       if (!aprobable) return toast('Para pasar a ejecución el proyecto debe ser aprobado por el jefe de planta o Control de Gestión.');
@@ -91,6 +111,14 @@ export function ProyectoForm({ inicial, onClose, onSaved }: { inicial: Proyecto;
         <Field label="Ahorro comprometido anual" hint="(MM CLP)"><NumInput value={f.ahorro_comprometido_anual} onChange={(v) => set('ahorro_comprometido_anual', v ?? 0)} /></Field>
         <Field label="Inversión CAPEX" hint="(MM CLP)"><NumInput value={f.inversion_capex} onChange={(v) => set('inversion_capex', v ?? 0)} /></Field>
         <Field label="Inversión OPEX one-time" hint="(MM CLP)"><NumInput value={f.inversion_opex} onChange={(v) => set('inversion_opex', v ?? 0)} /></Field>
+        <Field label="Complejidad de implementación" hint="(esfuerzo para la priorización)">
+          <select id="pf-complejidad" className="select" value={f.complejidad} onChange={(e) => set('complejidad', Number(e.target.value))}>
+            {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n} · {COMPLEJIDAD_LABEL[n]}</option>)}
+          </select>
+        </Field>
+        <Field label="Probabilidad de éxito %" hint={`(vacío = estándar de la etapa: ${PROB_ETAPA[f.etapa]} %)`}>
+          <NumInput allowNull value={f.probabilidad} onChange={(v) => set('probabilidad', v == null ? null : Math.max(0, Math.min(100, Math.round(v))))} />
+        </Field>
         <Field label="Avance manual %" hint="(solo si el proyecto no tiene hitos)"><NumInput value={f.avance_manual} onChange={(v) => set('avance_manual', Math.max(0, Math.min(100, v ?? 0)))} /></Field>
       </div>
     </Modal>
