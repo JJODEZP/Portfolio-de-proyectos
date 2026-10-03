@@ -14,13 +14,22 @@ Después transcribe en local y genera apuntes + **mejoras personales**.
 Dos pistas separadas (`system.wav` = los demás, `mic.wav` = tú) permiten etiquetar **Yo / Otros** y
 que el feedback sea solo sobre tu participación.
 
-## Instalación
+## Instalación en tu computador (comando global `meetnotes`)
+
+Clona el repositorio en tu equipo y ejecuta el instalador. Crea un entorno aislado
+(`~/.meetnotes` en macOS/Linux, `%LOCALAPPDATA%\meetnotes` en Windows) y deja `meetnotes` disponible en cualquier terminal. Requiere Python 3.10+.
 
 ```bash
-cd meeting-recorder
-pip install -e '.[all]'          # o solo: '.[capture,transcribe]' si no usarás IA para los apuntes
-export ANTHROPIC_API_KEY=...     # opcional: apuntes con Claude (sin clave, obtienes transcripción + métricas)
+git clone https://github.com/JJODEZP/Portfolio-de-proyectos.git
+cd Portfolio-de-proyectos/meeting-recorder
+
+./install.sh                                   # macOS / Linux
+powershell -ExecutionPolicy Bypass -File .\install.ps1   # Windows
 ```
+
+Sin IA para los apuntes (solo transcripción + métricas): `EXTRAS=capture,transcribe ./install.sh`.
+Para apuntes con Claude, define `ANTHROPIC_API_KEY` en tu entorno.
+Desinstalar: borra la carpeta del entorno y el enlace `~/.local/bin/meetnotes`.
 
 Whisper se ejecuta en tu equipo (la primera vez descarga el modelo). El audio nunca sale de tu
 computadora; a Claude solo se envía el **texto** de la transcripción.
