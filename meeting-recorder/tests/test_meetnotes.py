@@ -97,3 +97,22 @@ def test_process_session_end_to_end_without_llm(tmp_path, monkeypatch):
 def test_session_dir_slug(tmp_path):
     d = cli.new_session_dir(tmp_path, "Reunión Q4 / Ventas!")
     assert d.name.endswith("reunión-q4-ventas")
+
+
+def test_transcribe_passes_decoded_audio_not_path(tmp_path):
+    """Regresión: pasar la ruta hace que faster-whisper use PyAV (falla con versiones viejas)."""
+    from meetnotes.transcribe import transcribe_file
+
+    wav = tmp_path / "a.wav"
+    with WavWriter(wav) as w:
+        w.write(np.zeros(16000, dtype=np.float32))
+    seen = {}
+
+    class FakeModel:
+        def transcribe(self, audio, **kw):
+            seen["audio"] = audio
+            return [SimpleNamespace(start=0.0, end=1.0, text=" hola ")], None
+
+    segs = transcribe_file(wav, "Yo", offset=2.0, _model=FakeModel())
+    assert isinstance(seen["audio"], np.ndarray) and seen["audio"].dtype == np.float32
+    assert [(s.start, s.text) for s in segs] == [(2.0, "hola")]

@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from difflib import SequenceMatcher
 from pathlib import Path
 
+from .audio import read_wav
+
 SPEAKER_LABELS = {"mic": "Yo", "system": "Otros"}
 
 
@@ -33,8 +35,13 @@ def transcribe_file(
                 "Falta faster-whisper. Instala con: pip install 'meetnotes[transcribe]'"
             ) from e
         _model = WhisperModel(model_size, compute_type="int8")
+    # Se pasa el audio ya decodificado (float32 16 kHz) en vez de la ruta: así faster-whisper
+    # no usa PyAV para abrir el archivo, y no depende de la versión de `av` instalada.
+    audio, rate = read_wav(Path(path))
+    if rate != 16_000:
+        raise ValueError(f"{path}: se esperaban 16 kHz, hay {rate} Hz")
     segments, _info = _model.transcribe(
-        str(path), language=language, vad_filter=True, beam_size=5
+        audio, language=language, vad_filter=True, beam_size=5
     )
     return [
         Segment(s.start + offset, s.end + offset, s.text.strip(), speaker)
