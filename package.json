@@ -1,0 +1,22 @@
+{
+  "name": "portfolio-de-proyectos",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JJODEZP/Portfolio-de-proyectos.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/JJODEZP/Portfolio-de-proyectos/issues"
+  },
+  "homepage": "https://github.com/JJODEZP/Portfolio-de-proyectos#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^26.6.7"
+  }
+}
